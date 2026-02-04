@@ -1,0 +1,22 @@
+{
+  "name": "aero-x-backend",
+  "version": "1.0.0",
+  "description": "Production-ready hardened API for AERO-X shop",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["express", "sqlite", "jwt", "bcrypt", "api"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.21.2",
+    "better-sqlite3": "^12.6.2",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "cookie-parser": "^1.4.7",
+    "uuid": "^11.0.5"
+  }
+}

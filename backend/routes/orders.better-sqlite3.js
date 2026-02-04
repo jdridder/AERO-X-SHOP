@@ -1,0 +1,119 @@
+import express from 'express';
+import { v4 as uuidv4 } from 'uuid';
+import { queryAll, queryRun, queryGet } from '../config/database.js';
+import { authenticateToken } from '../middleware/auth.js';
+
+const router = express.Router();
+
+router.get('/my-orders', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const orders = queryAll(
+      'SELECT id, items, total_price, shipping_address, is_paid, status, created_at FROM orders WHERE user_id = ? ORDER BY created_at DESC',
+      [userId]
+    );
+
+    const parsedOrders = orders.map(order => ({
+      ...order,
+      items: JSON.parse(order.items),
+      shipping_address: JSON.parse(order.shipping_address),
+      is_paid: order.is_paid === 1
+    }));
+
+    res.status(200).json({ orders: parsedOrders });
+  } catch (err) {
+    console.error('Fetch orders error:', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+router.post('/return/:orderId', authenticateToken, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.user.userId;
+
+    const order = queryGet(
+      'SELECT id, user_id, status FROM orders WHERE id = ?',
+      [orderId]
+    );
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found.' });
+    }
+
+    if (order.user_id !== userId) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+
+    if (order.status === 'return_initiated') {
+      return res.status(400).json({ error: 'Return already initiated for this order.' });
+    }
+
+    queryRun(
+      'UPDATE orders SET status = ? WHERE id = ?',
+      ['return_initiated', orderId]
+    );
+
+    res.status(200).json({
+      message: 'Return initiated successfully.',
+      orderId,
+      status: 'return_initiated'
+    });
+  } catch (err) {
+    console.error('Return order error:', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+router.post('/checkout', authenticateToken, async (req, res) => {
+  try {
+    const { items, total_price, shipping_address } = req.body;
+    const userId = req.user.userId;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Items array is required and must not be empty.' });
+    }
+
+    if (!total_price || typeof total_price !== 'number' || total_price <= 0) {
+      return res.status(400).json({ error: 'Valid total_price is required.' });
+    }
+
+    if (!shipping_address || typeof shipping_address !== 'object') {
+      return res.status(400).json({ error: 'Shipping address is required.' });
+    }
+
+    const requiredFields = ['firstName', 'lastName', 'address', 'city', 'postalCode', 'email'];
+    for (const field of requiredFields) {
+      if (!shipping_address[field]) {
+        return res.status(400).json({ error: `Shipping address missing field: ${field}` });
+      }
+    }
+
+    const orderId = uuidv4();
+
+    queryRun(
+      'INSERT INTO orders (id, user_id, items, total_price, shipping_address, is_paid, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        orderId,
+        userId,
+        JSON.stringify(items),
+        total_price,
+        JSON.stringify(shipping_address),
+        1,
+        'processed'
+      ]
+    );
+
+    res.status(201).json({
+      message: 'Order created successfully.',
+      orderId,
+      status: 'processed'
+    });
+  } catch (err) {
+    console.error('Checkout error:', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+export default router;

@@ -1,0 +1,132 @@
+@import "tailwindcss";
+@import "tailwindcss/utilities";
+
+@theme {
+  /* Typography */
+  --font-oxanium: var(--font-oxanium), sans-serif;
+  --font-mono: var(--font-jetbrains-mono), monospace;
+
+  /* Border Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+
+  /* Brand Colors - Tailwind v4 format */
+  --color-accent-b: #ccff00;
+  /* Acid Green */
+  --color-accent-a: #4d4dff;
+  /* Plasma Blue */
+  --color-canvas: #050507;
+  /* Obsidian */
+  --color-primary: #e0e0e0;
+  /* Cloud */
+}
+
+/* Light Mode Variables (Default) */
+:root {
+  --background: var(--color-canvas);
+  --foreground: var(--color-primary);
+
+  /* Bimodal System - Light Mode (Clinical Lab) */
+  --color-bg: #ffffff;
+  --color-text: #050507;
+  --color-border: rgba(0, 0, 0, 0.1);
+  --color-border-strong: rgba(0, 0, 0, 0.2);
+
+  /* Adaptive Glassmorphism */
+  --glass-bg: rgba(0, 0, 0, 0.05);
+  --glass-border: rgba(0, 0, 0, 0.1);
+  --glass-blur: 24px;
+
+  /* Checkout Modal */
+  --checkout-bg: rgba(255, 255, 255, 0.9);
+  --checkout-backdrop: rgba(0, 0, 0, 0.6);
+  --checkout-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.3);
+
+  /* HUD */
+  --hud-bg: rgba(255, 255, 255, 0.8);
+  --hud-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2);
+}
+
+/* Dark Mode Variables */
+.dark {
+  /* Bimodal System - Dark Mode (Obsidian) */
+  --color-bg: #050507;
+  --color-text: #e0e0e0;
+  --color-border: rgba(224, 224, 224, 0.1);
+  --color-border-strong: rgba(224, 224, 224, 0.2);
+
+  /* Adaptive Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-blur: 20px;
+
+  /* Checkout Modal */
+  --checkout-bg: rgba(5, 5, 7, 0.9);
+  --checkout-backdrop: rgba(0, 0, 0, 0.8);
+  --checkout-shadow: 0 0 50px rgba(204, 255, 0, 0.15);
+
+  /* HUD */
+  --hud-bg: rgba(5, 5, 7, 0.8);
+  --hud-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+}
+
+h1 {
+  color: var(--color-primary);
+  font-family: var(--font-oxanium);
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-jetbrains-mono);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Adaptive Glassmorphism Utility */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.holographic-glow {
+  box-shadow: 0 0 20px rgba(204, 255, 0, 0.2), inset 0 0 10px rgba(77, 77, 255, 0.1);
+  border: 1px solid rgba(204, 255, 0, 0.3);
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(200%); }
+}
+
+.animate-scanline {
+  animation: scanline 4s linear infinite;
+}
+
+/* Light Mode Accent Visibility - Text Shadows for Pop */
+
+:root .text-accent-b {
+  /* Acid Green with glow */
+  text-shadow: 0 0 8px rgba(204, 255, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+:root .text-accent-a {
+  /* Plasma Blue with depth */
+  text-shadow: 0 0 6px rgba(77, 77, 255, 0.3), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+:root .bg-accent-b {
+  box-shadow: 0 2px 12px rgba(204, 255, 0, 0.3);
+}
+
+:root .bg-accent-a {
+  box-shadow: 0 2px 12px rgba(77, 77, 255, 0.25);
+}
+
+/* Emergency Scroll Reset Logic */
+/* If body does NOT contain an active overlay, force overflow to auto/unset */
+body:not(:has([data-overlay-active="true"])) {
+  overflow: auto !important;
+}
