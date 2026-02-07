@@ -62,8 +62,12 @@ export const productPriceMap = new Map(
 
 // Validate and calculate total price from items array
 // Returns { valid: boolean, calculatedTotal: number, errors: string[] }
-export function validateAndCalculateTotal(items) {
-  const errors = [];
+interface CartItem {
+  id: string;
+  quantity?: number | string;
+}
+export function validateAndCalculateTotal(items: CartItem[]) {
+  const errors: string[] = [];
   let calculatedTotal = 0;
 
   if (!items || !Array.isArray(items) || items.length === 0) {
@@ -82,7 +86,7 @@ export function validateAndCalculateTotal(items) {
       continue;
     }
 
-    const quantity = parseInt(item.quantity, 10) || 1;
+    const quantity = parseInt(String(item.quantity ?? 1), 10) || 1;
     if (quantity < 1 || quantity > 100) {
       errors.push(`Invalid quantity for ${item.id}: ${quantity}`);
       continue;

@@ -4,9 +4,16 @@ import { ClientOnly } from "@/components/ui/ClientOnly";
 import { Environment, ScrollControls, useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Suspense } from "react";
+import * as THREE from "three";
 
-function Model(props) {
-    const { nodes, materials } = useGLTF('/models/track-athlete-shirt.glb')
+interface ModelProps {
+    [key: string]: unknown;
+}
+
+function Model(props: ModelProps) {
+    const gltf = useGLTF('/models/track-athlete-shirt.glb');
+    const nodes = gltf.nodes as Record<string, THREE.Mesh>;
+    const materials = gltf.materials as Record<string, THREE.Material>;
 
     return (
         <group {...props} dispose={null}>

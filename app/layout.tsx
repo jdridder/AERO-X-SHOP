@@ -14,14 +14,13 @@ const jetbrainsMono = localFont({
 
 export const metadata: Metadata = {
   title: "WASP AERODYNAMICS",
-  description: "High-performance track and field gear.",
+  description: "High-performance running & track and field gear.",
 };
 
-import { HUDNav } from "@/components/layout/HUDNav";
 import { CartMenu } from "@/components/commerce/CartMenu";
 import { CheckoutModal } from "@/components/commerce/CheckoutModal";
+import { HUDNav } from "@/components/layout/HUDNav";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
-import { dirname } from "path";
 
 // ... imports
 

@@ -1,13 +1,14 @@
 "use client";
 
-import { ProductViewer } from "@/components/3d/ProductViewer";
+// import { ProductViewer } from "@/components/3d/ProductViewer";
+import { SizeGuideSection } from "@/components/sections/SizeGuideSection";
 import { AddToCartButton } from "@/components/shop/AddToCartButton";
 import { PerformanceRadar } from "@/components/shop/PerformanceRadar";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { useProduct } from "@/lib/hooks/useProducts";
-import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { AlertTriangle, Loader2 } from "lucide-react";
+import { useParams } from "next/navigation";
 
 function ProductLoadingSkeleton() {
     return (
@@ -81,8 +82,8 @@ export default function ProductPage() {
     }
 
     return (
-        <div className="relative min-h-[300vh]">
-            <ProductViewer />
+        <div className="relative min-h-[400vh]">
+            {/* <ProductViewer />
 
             {/* Overlay Content - Fixed for now, or scrolling with the page */}
             <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-10 flex flex-col justify-between p-8 md:p-12">
@@ -142,11 +143,36 @@ export default function ProductPage() {
                 </GlassPanel>
             </div>
 
-            <div className="absolute top-[200vh] w-full flex justify-center pointer-events-none">
+            {/* Section 2: Holographic Size Guide */}
+            <div className="absolute top-[100vh] w-full">
+                <SizeGuideSection modelPath="/models/male-tee-model.glb" />
+            </div>
+
+            <div className="absolute top-[300vh] w-full flex justify-center pointer-events-none">
                 <GlassPanel className="backdrop-blur-md bg-black/40 p-4">
-                    <h2 className="text-2xl font-headline">LAYER 2: KINETIC RETURN</h2>
+                    <h2 className="text-2xl font-headline">LAYER 2: STORY</h2>
                 </GlassPanel>
             </div>
+
+            {/* <div className="rte">
+                <p data-mce-fragment="1">
+                    Erlebe die perfekte Kombination aus Stil und Funktionalität mit den Wasp Aerodynamics Arm Sleeves und ihren herausragenden Designs.
+                    Diese Sleeves vereinen sportliche Höchstleistung mit einem auffälligen Look und bieten dir alles,
+                    was du für Training und Wettkampf benötigst.</p>
+                <p data-mce-fragment="1"><strong data-mce-fragment="1">Hauptmerkmale</strong></p>
+                <ul data-mce-fragment="1">
+                <li data-mce-fragment="1"><strong data-mce-fragment="1">
+                    Hautähnliche Passform</strong>: Der Arm Sleeve passt sich dank hochwertiger, elastischer Materialien perfekt an die Haut an und minimiert Reibung.</li>
+                <li data-mce-fragment="1"><strong data-mce-fragment="1">Einzigartige Designs</strong>: Die Designs unserer Arm Sleeves verleihen deinem Sport-Outfit einen frischen, dynamischen Look.</li>
+                <li data-mce-fragment="1"><strong data-mce-fragment="1">Premium-Lycra</strong>: Hergestellt aus hochwertigem, atmungsaktivem Lycra, bietet der Sleeve nicht nur eine hervorragende Passform, sondern auch eine leichte Kompression.</li>
+                <li data-mce-fragment="1"><strong data-mce-fragment="1">Wärmend &amp; UV-Schutz</strong>: Der Sleeve schützt deine Arme vor Kälte oder UV-Strahlen, damit du bei jedem Wetter bestens ausgerüstet bist.</li>
+                <li data-mce-fragment="1"><strong data-mce-fragment="1">Feine Verarbeitung</strong>: Präzise verarbeitete Designelemente tragen zum hochwertigen Erscheinungsbild und zur Langlebigkeit des Sleeves bei.</li>
+                <li data-mce-fragment="1"><strong data-mce-fragment="1">Von Athleten inspiriert</strong>: Entwickelt von und für Athleten, die sowohl Stil als auch Leistung schätzen – ideal für Trainingseinheiten und Wettkämpfe.</li>
+                </ul>
+                <p data-mce-fragment="1">Mit den Wasp Aerodynamics Arm Sleeves siehst du nicht nur großartig aus, sondern profitierst auch von herausragender Funktionalität, die dich in jeder Situation unterstützt.</p>
+                <p data-mce-fragment="1"><strong data-mce-fragment="1">Größe</strong></p>
+                <p data-mce-fragment="1">Das Model ist 195 cm groß, wiegt 86 kg und trägt Größe M mit einem Bizepsumfang von 28 cm. Die Arm Sleeves fallen etwas größer aus. Wähle eine Nummer kleiner.</p>
+            </div> */}
 
         </div>
     );
