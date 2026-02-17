@@ -1,183 +1,147 @@
 "use client";
 
-import { useCart } from "@/lib/store/useCart";
-import { Button } from "@/components/ui/Button";
 import { OrderManifest } from "@/components/commerce/OrderManifest";
-import { X, Shield, CreditCard, Lock, Zap, ArrowRight, Check, User, AlertTriangle, CheckCircle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { getProfile, smartCheckout, ProfileResponse } from "@/lib/services/api";
+import { getProfile, ProfileResponse } from "@/lib/services/api";
+import { getStripe } from "@/lib/stripe";
+import { useCart } from "@/lib/store/useCart";
+import { cn } from "@/lib/utils";
+import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import type { Appearance } from "@stripe/stripe-js";
+import { AnimatePresence, motion } from "framer-motion";
+import { AlertTriangle, ArrowRight, Check, CheckCircle, Lock, Shield, User, X, Zap } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-type PaymentMethod = "credit_card" | "paypal" | "apple_pay" | "google_pay" | null;
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 interface Toast {
     type: "success" | "error";
     message: string;
 }
 
+// ============================================================================
+// STRIPE APPEARANCE — Dark holographic theme
+// ============================================================================
+
+const STRIPE_APPEARANCE: Appearance = {
+    theme: "night",
+    variables: {
+        colorPrimary: "#CCFF00",
+        colorBackground: "#0a0a0c",
+        colorText: "#f5f5f5",
+        colorTextSecondary: "#a0a0a0",
+        colorDanger: "#ef4444",
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        borderRadius: "6px",
+        spacingUnit: "4px",
+    },
+    rules: {
+        ".Input": {
+            backgroundColor: "rgba(255,255,255,0.05)",
+            borderColor: "rgba(255,255,255,0.15)",
+            boxShadow: "none",
+        },
+        ".Input:focus": {
+            borderColor: "#CCFF00",
+            boxShadow: "0 4px 12px -6px rgba(204,255,0,0.3)",
+            backgroundColor: "rgba(204,255,0,0.05)",
+        },
+        ".Label": {
+            fontWeight: "700",
+            fontSize: "11px",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "#9ca3af",
+        },
+        ".Tab": {
+            borderColor: "rgba(255,255,255,0.1)",
+            backgroundColor: "rgba(255,255,255,0.05)",
+        },
+        ".Tab--selected": {
+            borderColor: "#CCFF00",
+            backgroundColor: "rgba(204,255,0,0.1)",
+            color: "#CCFF00",
+        },
+    },
+};
+
+// ============================================================================
+// OUTER COMPONENT — Manages Elements provider + clientSecret lifecycle
+// ============================================================================
+
 export function CheckoutModal() {
-    const { isCheckoutOpen, closeCheckout, clearCart, items, total } = useCart();
-    const { isAuthenticated, loginSuccess, user } = useAuth();
-    const [loading, setLoading] = useState(false);
+    const { isCheckoutOpen, closeCheckout, items } = useCart();
     const [mounted, setMounted] = useState(false);
-    const [profileLoaded, setProfileLoaded] = useState(false);
     const [toast, setToast] = useState<Toast | null>(null);
+    const [clientSecret, setClientSecret] = useState<string | null>(null);
+    const [intentError, setIntentError] = useState<string | null>(null);
+    const [creatingIntent, setCreatingIntent] = useState(false);
 
-    // Guest account creation toggle
-    const [wantsAccount, setWantsAccount] = useState(false);
+    const stripePromise = useMemo(() => getStripe(), []);
 
-    // Form State
-    const [formData, setFormData] = useState({
-        firstName: "",
-        lastName: "",
-        email: "",
-        address: "",
-        city: "",
-        postalCode: "",
-        password: "",
-    });
-
-    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
-    const [termsAccepted, setTermsAccepted] = useState(false);
-
-    const showToast = (type: "success" | "error", message: string) => {
+    const showToast = useCallback((type: "success" | "error", message: string) => {
         setToast({ type, message });
         setTimeout(() => setToast(null), 4000);
-    };
-
-    useEffect(() => {
-        setMounted(true);
     }, []);
 
-    // Auto-fill form for authenticated users
-    useEffect(() => {
-        if (isAuthenticated && isCheckoutOpen && !profileLoaded) {
-            loadProfile();
-        }
-    }, [isAuthenticated, isCheckoutOpen, profileLoaded]);
+    useEffect(() => { setMounted(true); }, []);
 
-    // Reset form when modal closes
+    // Reset clientSecret when modal closes
     useEffect(() => {
         if (!isCheckoutOpen) {
-            setProfileLoaded(false);
-            setWantsAccount(false);
+            setClientSecret(null);
+            setIntentError(null);
         }
     }, [isCheckoutOpen]);
 
-    const loadProfile = async () => {
-        try {
-            const profile: ProfileResponse = await getProfile();
-            const nameParts = (profile.name || "").split(" ");
-            setFormData({
-                firstName: profile.shippingAddress?.firstName || nameParts[0] || "",
-                lastName: profile.shippingAddress?.lastName || nameParts.slice(1).join(" ") || "",
-                email: profile.email,
-                address: profile.shippingAddress?.address || "",
-                city: profile.shippingAddress?.city || "",
-                postalCode: profile.shippingAddress?.postalCode || "",
-                password: "",
-            });
-            setProfileLoaded(true);
-        } catch {
-            // Profile load failed, use empty form
-            setProfileLoaded(true);
-        }
-    };
-
-    // Scroll Lock Side Effect
+    // Scroll lock
     useEffect(() => {
         if (isCheckoutOpen) {
             document.body.style.overflow = "hidden";
         } else {
             document.body.style.overflow = "";
         }
-        return () => {
-            document.body.style.overflow = "";
-        };
+        return () => { document.body.style.overflow = ""; };
     }, [isCheckoutOpen]);
 
     if (!mounted) return null;
 
-    // Validation Logic
-    const baseValidation =
-        formData.email.length > 0 &&
-        formData.address.length > 0 &&
-        formData.firstName.length > 0 &&
-        formData.lastName.length > 0 &&
-        formData.city.length > 0 &&
-        formData.postalCode.length > 0 &&
-        paymentMethod !== null &&
-        termsAccepted;
-
-    // Password validation for new account creation
-    const passwordValid = !wantsAccount || (
-        formData.password.length >= 8 &&
-        /[0-9]/.test(formData.password) &&
-        /[A-Z]/.test(formData.password)
-    );
-
-    const isFormValid = baseValidation && passwordValid;
-
-    const handlePurchase = async () => {
-        if (!isFormValid) return;
-
-        setLoading(true);
+    // Called by CheckoutForm when user is ready to pay — creates the PaymentIntent
+    const createPaymentIntent = async (shippingAddress: Record<string, string>, password?: string) => {
+        setCreatingIntent(true);
+        setIntentError(null);
         try {
             const orderItems = items.map(item => ({
                 id: item.id,
-                name: item.name,
                 quantity: item.quantity,
-                price: item.price,
-                image_url: item.image_url,
             }));
 
-            const shippingAddress = {
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                email: formData.email,
-                address: formData.address,
-                city: formData.city,
-                postalCode: formData.postalCode,
-            };
-
-            // Smart checkout handles all 3 cases
-            const response = await smartCheckout(
-                orderItems,
-                total(),
-                shippingAddress,
-                wantsAccount && !isAuthenticated ? formData.password : undefined
-            );
-
-            // If new account was created, update auth state
-            if (response.isNewAccount && response.userId && response.email) {
-                loginSuccess({ userId: response.userId, email: response.email });
-                showToast("success", "ACCOUNT CREATED & ORDER DEPLOYED");
-            } else if (response.isGuest) {
-                showToast("success", "GUEST ORDER DEPLOYED");
-            } else {
-                showToast("success", "ORDER DEPLOYED SUCCESSFULLY");
-            }
-
-            clearCart();
-            closeCheckout();
-            setFormData({
-                firstName: "", lastName: "", email: "", address: "", city: "", postalCode: "", password: ""
+            const res = await fetch(`${API_BASE}/api/create-payment-intent`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    items: orderItems,
+                    shipping_address: shippingAddress,
+                    password,
+                }),
             });
-            setPaymentMethod(null);
-            setTermsAccepted(false);
-            setWantsAccount(false);
-        } catch (error) {
-            showToast("error", error instanceof Error ? error.message : "Checkout failed");
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Payment intent failed");
+
+            setClientSecret(data.clientSecret);
+            return data.clientSecret as string;
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : "Failed to initialize payment";
+            setIntentError(msg);
+            showToast("error", msg);
+            return null;
         } finally {
-            setLoading(false);
+            setCreatingIntent(false);
         }
     };
-
-    const handleInput = (key: string, value: string) => {
-        setFormData(prev => ({ ...prev, [key]: value }));
-    }
 
     return (
         <AnimatePresence>
@@ -197,7 +161,7 @@ export function CheckoutModal() {
                         style={{ background: 'var(--checkout-backdrop)' }}
                     />
 
-                    {/* Holographic Modal - Floating Animation Container */}
+                    {/* Holographic Modal */}
                     <motion.div
                         initial={{ scale: 0.95, opacity: 0, y: 20 }}
                         animate={{
@@ -223,298 +187,29 @@ export function CheckoutModal() {
                         }}
                     >
                         {/* Header */}
-                        <div className="flex-shrink-0 flex items-center justify-between border-b bg-black/90 px-8 py-5 backdrop-blur-xl z-20" style={{ borderColor: 'var(--color-border-strong)' }}>
-                            <div className="flex items-center gap-3">
-                                <Shield className="h-5 w-5 text-accent-b" />
-                                <h2 className="font-headline text-2xl font-bold tracking-widest text-white">
-                                    COMMAND CENTER <span className="text-accent-b">// CHECKOUT</span>
-                                </h2>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                {/* Auth Status Badge */}
-                                {isAuthenticated ? (
-                                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent-b/10 border border-accent-b/30">
-                                        <motion.div
-                                            className="w-2 h-2 rounded-full bg-accent-b"
-                                            animate={{ scale: [1, 1.2, 1] }}
-                                            transition={{ duration: 1.5, repeat: Infinity }}
-                                        />
-                                        <span className="font-mono text-[10px] text-accent-b tracking-wider">
-                                            {user?.shortId || "PILOT ACTIVE"}
-                                        </span>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-primary/20">
-                                        <User className="w-3 h-3 text-primary/40" />
-                                        <span className="font-mono text-[10px] text-primary/40 tracking-wider">
-                                            GUEST MODE
-                                        </span>
-                                    </div>
-                                )}
-                                <button onClick={closeCheckout} className="group p-2 transition-colors hover:bg-accent-b/10 rounded-md">
-                                    <X className="h-6 w-6 text-primary/60 transition-colors group-hover:text-accent-b" />
-                                </button>
-                            </div>
-                        </div>
+                        <CheckoutHeader closeCheckout={closeCheckout} />
 
                         {/* Split Pane Layout */}
                         <div className="flex-1 flex overflow-hidden">
-
-                            {/* LEFT COLUMN: FORM (Scrollable) */}
-                            <motion.div
-                                initial={{ x: -20, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                transition={{ delay: 0.1 }}
-                                className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-accent-b/20 scrollbar-track-transparent p-8 lg:p-10 border-r"
-                                style={{ borderColor: 'var(--color-border-strong)' }}
-                            >
-                                <div className="max-w-2xl mx-auto space-y-10">
-
-                                    {/* Identity Section */}
-                                    <div className="space-y-6">
-                                        <SectionHeader title="01 // OPERATOR IDENTITY" />
-
-                                        {/* Authenticated User Banner */}
-                                        {isAuthenticated && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: -10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                className="rounded-lg border border-accent-b/20 bg-accent-b/5 p-4 mb-4"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-accent-b/20 border border-accent-b/40 flex items-center justify-center">
-                                                        <User className="w-5 h-5 text-accent-b" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-headline text-sm font-bold text-accent-b tracking-wider">
-                                                            AUTHENTICATED PILOT
-                                                        </p>
-                                                        <p className="font-mono text-[10px] text-primary/50">
-                                                            Your saved profile data has been loaded.
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </motion.div>
-                                        )}
-
-                                        <div className="grid grid-cols-2 gap-5">
-                                            <HoloInput
-                                                label="FIRST NAME"
-                                                value={formData.firstName}
-                                                onChange={(e) => handleInput("firstName", e.target.value)}
-                                                required
-                                            />
-                                            <HoloInput
-                                                label="LAST NAME"
-                                                value={formData.lastName}
-                                                onChange={(e) => handleInput("lastName", e.target.value)}
-                                                required
-                                            />
-                                        </div>
-                                        <HoloInput
-                                            label="COMM-LINK (EMAIL)"
-                                            type="email"
-                                            value={formData.email}
-                                            onChange={(e) => handleInput("email", e.target.value)}
-                                            required
-                                            disabled={isAuthenticated}
-                                        />
-
-                                        {/* Account Creation Option for Guests */}
-                                        {!isAuthenticated && (
-                                            <motion.div
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                className="rounded-lg border border-accent-a/20 bg-accent-a/5 p-4 mt-4"
-                                            >
-                                                <div
-                                                    className="flex items-center justify-between cursor-pointer group"
-                                                    onClick={() => setWantsAccount(!wantsAccount)}
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <Zap className="h-4 w-4 text-accent-a" />
-                                                        <div>
-                                                            <h4 className="font-headline text-sm font-bold text-accent-a tracking-wider">
-                                                                CREATE PILOT ACCOUNT
-                                                            </h4>
-                                                            <p className="font-mono text-[10px] text-primary/50">
-                                                                Track orders & save preferences (optional)
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <div className={cn(
-                                                        "flex h-6 w-6 items-center justify-center border rounded transition-all",
-                                                        wantsAccount
-                                                            ? "bg-accent-a/20 border-accent-a"
-                                                            : "border-primary/30 group-hover:border-accent-a/50"
-                                                    )}>
-                                                        {wantsAccount && <Check className="h-4 w-4 text-accent-a" />}
-                                                    </div>
-                                                </div>
-
-                                                <AnimatePresence>
-                                                    {wantsAccount && (
-                                                        <motion.div
-                                                            initial={{ height: 0, opacity: 0 }}
-                                                            animate={{ height: "auto", opacity: 1 }}
-                                                            exit={{ height: 0, opacity: 0 }}
-                                                            className="overflow-hidden"
-                                                        >
-                                                            <div className="pt-4 border-t border-accent-a/20 mt-4">
-                                                                <HoloInput
-                                                                    label="SET ACCESS KEY (PASSWORD)"
-                                                                    type="password"
-                                                                    value={formData.password}
-                                                                    onChange={(e) => handleInput("password", e.target.value)}
-                                                                    required
-                                                                    placeholder="MIN 8 CHARS, 1 DIGIT, 1 UPPERCASE"
-                                                                    icon={Lock}
-                                                                />
-                                                                {formData.password.length > 0 && !passwordValid && (
-                                                                    <p className="mt-2 font-mono text-[10px] text-red-400/80">
-                                                                        Password requires: 8+ chars, 1 digit, 1 uppercase
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                        </motion.div>
-                                                    )}
-                                                </AnimatePresence>
-                                            </motion.div>
-                                        )}
-                                    </div>
-
-                                    {/* Shipping Section */}
-                                    <div className="space-y-6">
-                                        <SectionHeader title="02 // DEPLOYMENT COORDINATES" />
-                                        <HoloInput
-                                            label="STREET ADDRESS"
-                                            value={formData.address}
-                                            onChange={(e) => handleInput("address", e.target.value)}
-                                            required
-                                        />
-                                        <div className="grid grid-cols-2 gap-5">
-                                            <HoloInput
-                                                label="SECTOR (CITY)"
-                                                value={formData.city}
-                                                onChange={(e) => handleInput("city", e.target.value)}
-                                                required
-                                            />
-                                            <HoloInput
-                                                label="POSTAL CODE"
-                                                value={formData.postalCode}
-                                                onChange={(e) => handleInput("postalCode", e.target.value)}
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Payment Section */}
-                                    <div className="space-y-6">
-                                        <SectionHeader title="03 // PAYMENT PROTOCOL" />
-                                        <div className="space-y-3">
-                                            <PaymentToggle
-                                                active={paymentMethod === "credit_card"}
-                                                onClick={() => setPaymentMethod("credit_card")}
-                                                label="CREDIT CARD (STRIPE)"
-                                                icon={CreditCard}
-                                            />
-
-                                            <AnimatePresence>
-                                                {paymentMethod === "credit_card" && (
-                                                    <motion.div
-                                                        initial={{ height: 0, opacity: 0 }}
-                                                        animate={{ height: "auto", opacity: 1 }}
-                                                        exit={{ height: 0, opacity: 0 }}
-                                                        className="overflow-hidden"
-                                                    >
-                                                        <div className="space-y-4 border-l-2 border-accent-b/20 pl-4 pt-2 mb-4">
-                                                            <HoloInput label="CARD NUMBER" placeholder="0000 0000 0000 0000" icon={Lock} />
-                                                            <div className="grid grid-cols-2 gap-4">
-                                                                <HoloInput label="EXPIRY" placeholder="MM/YY" />
-                                                                <HoloInput label="CVC" placeholder="123" />
-                                                            </div>
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-
-                                            <PaymentToggle
-                                                active={paymentMethod === "paypal"}
-                                                onClick={() => setPaymentMethod("paypal")}
-                                                label="PAYPAL SECURE"
-                                                icon={Lock}
-                                            />
-
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <PaymentToggle
-                                                    active={paymentMethod === "apple_pay"}
-                                                    onClick={() => setPaymentMethod("apple_pay")}
-                                                    label="APPLE PAY"
-                                                    compact
-                                                />
-                                                <PaymentToggle
-                                                    active={paymentMethod === "google_pay"}
-                                                    onClick={() => setPaymentMethod("google_pay")}
-                                                    label="GOOGLE PAY"
-                                                    compact
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Terms */}
-                                        <div
-                                            className="group flex cursor-pointer items-center gap-3 pt-4"
-                                            onClick={() => setTermsAccepted(!termsAccepted)}
-                                        >
-                                            <div className={cn(
-                                                "flex h-5 w-5 items-center justify-center border border-primary/40 rounded transition-colors group-hover:border-accent-b",
-                                                termsAccepted ? "bg-accent-b/10 border-accent-b" : "bg-transparent"
-                                            )}>
-                                                {termsAccepted && <Check className="h-3 w-3 text-accent-b" />}
-                                            </div>
-                                            <span className={cn(
-                                                "font-mono text-xs transition-colors",
-                                                termsAccepted ? "text-accent-b" : "text-primary/60 group-hover:text-primary"
-                                            )}>
-                                                I ACCEPT THE MISSION TERMS & LIABILITY PROTOCOLS
-                                            </span>
-                                        </div>
-
-                                        {/* Purchase Button */}
-                                        <div className="pt-8 pb-12">
-                                            <Button
-                                                size="lg"
-                                                className={cn(
-                                                    "w-full h-16 text-lg tracking-widest transition-all duration-500 rounded-lg",
-                                                    isFormValid
-                                                        ? "bg-accent-b text-black hover:shadow-[0_0_30px_rgba(204,255,0,0.5)]"
-                                                        : "bg-primary/5 text-primary/20 cursor-not-allowed border-primary/10 hover:bg-primary/5"
-                                                )}
-                                                disabled={!isFormValid || loading}
-                                                onClick={handlePurchase}
-                                            >
-                                                {loading ? (
-                                                    <span className="flex items-center gap-2">
-                                                        <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                                                        PROCESSING...
-                                                    </span>
-                                                ) : (
-                                                    <>
-                                                        {isAuthenticated ? "DEPLOY ORDER" : wantsAccount ? "CREATE ACCOUNT & DEPLOY" : "DEPLOY AS GUEST"}
-                                                        {isFormValid && <ArrowRight className="ml-2 h-5 w-5" />}
-                                                    </>
-                                                )}
-                                            </Button>
-
-                                            {!isFormValid && (
-                                                <p className="mt-3 text-center font-mono text-[10px] text-red-500/60 animate-pulse">
-                                                    [!] FILL MANDATORY FIELDS TO UNLOCK SYSTEM
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </motion.div>
+                            {clientSecret ? (
+                                <Elements
+                                    stripe={stripePromise}
+                                    options={{ clientSecret, appearance: STRIPE_APPEARANCE }}
+                                >
+                                    <CheckoutForm
+                                        clientSecret={clientSecret}
+                                        showToast={showToast}
+                                    />
+                                </Elements>
+                            ) : (
+                                <CheckoutForm
+                                    clientSecret={null}
+                                    showToast={showToast}
+                                    onCreateIntent={createPaymentIntent}
+                                    creatingIntent={creatingIntent}
+                                    intentError={intentError}
+                                />
+                            )}
 
                             {/* RIGHT COLUMN: MANIFEST */}
                             <motion.div
@@ -525,7 +220,6 @@ export function CheckoutModal() {
                             >
                                 <OrderManifest />
                             </motion.div>
-
                         </div>
                     </motion.div>
 
@@ -557,7 +251,466 @@ export function CheckoutModal() {
     );
 }
 
-// Sub-components
+// ============================================================================
+// INNER FORM COMPONENT — Uses Stripe hooks when Elements is available
+// ============================================================================
+
+interface CheckoutFormProps {
+    clientSecret: string | null;
+    showToast: (type: "success" | "error", message: string) => void;
+    onCreateIntent?: (shippingAddress: Record<string, string>, password?: string) => Promise<string | null>;
+    creatingIntent?: boolean;
+    intentError?: string | null;
+}
+
+function CheckoutForm({ clientSecret, showToast, onCreateIntent, creatingIntent, intentError }: CheckoutFormProps) {
+    const stripe = useStripe();
+    const elements = useElements();
+    const { isAuthenticated } = useAuth();
+    const { clearCart, closeCheckout } = useCart();
+    const [loading, setLoading] = useState(false);
+    const [profileLoaded, setProfileLoaded] = useState(false);
+    const { isCheckoutOpen } = useCart();
+
+    // Guest account creation toggle
+    const [wantsAccount, setWantsAccount] = useState(false);
+
+    // Form State
+    const [formData, setFormData] = useState({
+        firstName: "",
+        lastName: "",
+        email: "",
+        address: "",
+        city: "",
+        postalCode: "",
+        password: "",
+    });
+
+    const [termsAccepted, setTermsAccepted] = useState(false);
+
+    // Auto-fill form for authenticated users
+    useEffect(() => {
+        if (isAuthenticated && isCheckoutOpen && !profileLoaded) {
+            loadProfile();
+        }
+    }, [isAuthenticated, isCheckoutOpen, profileLoaded]);
+
+    // Reset form when modal closes
+    useEffect(() => {
+        if (!isCheckoutOpen) {
+            setProfileLoaded(false);
+            setWantsAccount(false);
+        }
+    }, [isCheckoutOpen]);
+
+    const loadProfile = async () => {
+        try {
+            const profile: ProfileResponse = await getProfile();
+            const nameParts = (profile.name || "").split(" ");
+            setFormData({
+                firstName: profile.shippingAddress?.firstName || nameParts[0] || "",
+                lastName: profile.shippingAddress?.lastName || nameParts.slice(1).join(" ") || "",
+                email: profile.email,
+                address: profile.shippingAddress?.address || "",
+                city: profile.shippingAddress?.city || "",
+                postalCode: profile.shippingAddress?.postalCode || "",
+                password: "",
+            });
+            setProfileLoaded(true);
+        } catch {
+            setProfileLoaded(true);
+        }
+    };
+
+    // Validation
+    const baseValidation =
+        formData.email.length > 0 &&
+        formData.address.length > 0 &&
+        formData.firstName.length > 0 &&
+        formData.lastName.length > 0 &&
+        formData.city.length > 0 &&
+        formData.postalCode.length > 0 &&
+        termsAccepted;
+
+    const passwordValid = !wantsAccount || (
+        formData.password.length >= 8 &&
+        /[0-9]/.test(formData.password) &&
+        /[A-Z]/.test(formData.password)
+    );
+
+    const isFormValid = baseValidation && passwordValid;
+
+    const shippingAddress = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        address: formData.address,
+        city: formData.city,
+        postalCode: formData.postalCode,
+    };
+
+    // ── Phase 1: Create PaymentIntent (no Stripe Elements yet) ──
+    const handleInitiatePayment = async () => {
+        if (!isFormValid || !onCreateIntent) return;
+        const password = wantsAccount && !isAuthenticated ? formData.password : undefined;
+        await onCreateIntent(shippingAddress, password);
+    };
+
+    // ── Phase 2: Confirm payment (Stripe Elements available) ────
+    const handleConfirmPayment = async () => {
+        if (!stripe || !elements) return;
+
+        setLoading(true);
+        try {
+            const returnUrl = `${window.location.origin}/shop?payment=success`;
+
+            const { error } = await stripe.confirmPayment({
+                elements,
+                confirmParams: {
+                    return_url: returnUrl,
+                    payment_method_data: {
+                        billing_details: {
+                            name: `${formData.firstName} ${formData.lastName}`,
+                            email: formData.email,
+                            address: {
+                                line1: formData.address,
+                                city: formData.city,
+                                postal_code: formData.postalCode,
+                            },
+                        },
+                    },
+                },
+                redirect: "if_required",
+            });
+
+            if (error) {
+                showToast("error", error.message || "Payment failed");
+            } else {
+                // Payment succeeded without redirect
+                showToast("success", "ORDER DEPLOYED SUCCESSFULLY");
+                clearCart();
+                closeCheckout();
+                setFormData({
+                    firstName: "", lastName: "", email: "", address: "", city: "", postalCode: "", password: ""
+                });
+                setTermsAccepted(false);
+                setWantsAccount(false);
+            }
+        } catch (error) {
+            showToast("error", error instanceof Error ? error.message : "Payment failed");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleInput = (key: string, value: string) => {
+        setFormData(prev => ({ ...prev, [key]: value }));
+    };
+
+    const isPaymentPhase = clientSecret !== null;
+
+    return (
+        <motion.div
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-accent-b/20 scrollbar-track-transparent p-8 lg:p-10 border-r"
+            style={{ borderColor: 'var(--color-border-strong)' }}
+        >
+            <div className="max-w-2xl mx-auto space-y-10">
+
+                {/* Identity Section */}
+                <div className="space-y-6">
+                    <SectionHeader title="01 // OPERATOR IDENTITY" />
+
+                    {isAuthenticated && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="rounded-lg border border-accent-b/20 bg-accent-b/5 p-4 mb-4"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-accent-b/20 border border-accent-b/40 flex items-center justify-center">
+                                    <User className="w-5 h-5 text-accent-b" />
+                                </div>
+                                <div>
+                                    <p className="font-headline text-sm font-bold text-accent-b tracking-wider">
+                                        AUTHENTICATED PILOT
+                                    </p>
+                                    <p className="font-mono text-[10px] text-primary/50">
+                                        Your saved profile data has been loaded.
+                                    </p>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-5">
+                        <HoloInput
+                            label="FIRST NAME"
+                            value={formData.firstName}
+                            onChange={(e) => handleInput("firstName", e.target.value)}
+                            required
+                            disabled={isPaymentPhase}
+                        />
+                        <HoloInput
+                            label="LAST NAME"
+                            value={formData.lastName}
+                            onChange={(e) => handleInput("lastName", e.target.value)}
+                            required
+                            disabled={isPaymentPhase}
+                        />
+                    </div>
+                    <HoloInput
+                        label="COMM-LINK (EMAIL)"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => handleInput("email", e.target.value)}
+                        required
+                        disabled={isAuthenticated || isPaymentPhase}
+                    />
+
+                    {/* Account Creation Option for Guests */}
+                    {!isAuthenticated && !isPaymentPhase && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="rounded-lg border border-accent-a/20 bg-accent-a/5 p-4 mt-4"
+                        >
+                            <div
+                                className="flex items-center justify-between cursor-pointer group"
+                                onClick={() => setWantsAccount(!wantsAccount)}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Zap className="h-4 w-4 text-accent-a" />
+                                    <div>
+                                        <h4 className="font-headline text-sm font-bold text-accent-a tracking-wider">
+                                            CREATE PILOT ACCOUNT
+                                        </h4>
+                                        <p className="font-mono text-[10px] text-primary/50">
+                                            Track orders & save preferences (optional)
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className={cn(
+                                    "flex h-6 w-6 items-center justify-center border rounded transition-all",
+                                    wantsAccount
+                                        ? "bg-accent-a/20 border-accent-a"
+                                        : "border-primary/30 group-hover:border-accent-a/50"
+                                )}>
+                                    {wantsAccount && <Check className="h-4 w-4 text-accent-a" />}
+                                </div>
+                            </div>
+
+                            <AnimatePresence>
+                                {wantsAccount && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="pt-4 border-t border-accent-a/20 mt-4">
+                                            <HoloInput
+                                                label="SET ACCESS KEY (PASSWORD)"
+                                                type="password"
+                                                value={formData.password}
+                                                onChange={(e) => handleInput("password", e.target.value)}
+                                                required
+                                                placeholder="MIN 8 CHARS, 1 DIGIT, 1 UPPERCASE"
+                                                icon={Lock}
+                                            />
+                                            {formData.password.length > 0 && !passwordValid && (
+                                                <p className="mt-2 font-mono text-[10px] text-red-400/80">
+                                                    Password requires: 8+ chars, 1 digit, 1 uppercase
+                                                </p>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </motion.div>
+                    )}
+                </div>
+
+                {/* Shipping Section */}
+                <div className="space-y-6">
+                    <SectionHeader title="02 // DEPLOYMENT COORDINATES" />
+                    <HoloInput
+                        label="STREET ADDRESS"
+                        value={formData.address}
+                        onChange={(e) => handleInput("address", e.target.value)}
+                        required
+                        disabled={isPaymentPhase}
+                    />
+                    <div className="grid grid-cols-2 gap-5">
+                        <HoloInput
+                            label="SECTOR (CITY)"
+                            value={formData.city}
+                            onChange={(e) => handleInput("city", e.target.value)}
+                            required
+                            disabled={isPaymentPhase}
+                        />
+                        <HoloInput
+                            label="POSTAL CODE"
+                            value={formData.postalCode}
+                            onChange={(e) => handleInput("postalCode", e.target.value)}
+                            required
+                            disabled={isPaymentPhase}
+                        />
+                    </div>
+                </div>
+
+                {/* Payment Section */}
+                <div className="space-y-6">
+                    <SectionHeader title="03 // PAYMENT PROTOCOL" />
+
+                    {isPaymentPhase ? (
+                        /* Stripe Payment Element — rendered inside <Elements> */
+                        <div className="space-y-4">
+                            <PaymentElement
+                                options={{
+                                    layout: "tabs",
+                                }}
+                            />
+                        </div>
+                    ) : (
+                        /* Pre-payment: show locked state prompting user to proceed */
+                        <div className="rounded-lg border border-primary/10 bg-white/5 p-6 text-center space-y-3">
+                            <Lock className="w-6 h-6 text-primary/30 mx-auto" />
+                            <p className="font-mono text-xs text-primary/40 tracking-wider">
+                                PAYMENT TERMINAL WILL ACTIVATE AFTER FORM VALIDATION
+                            </p>
+                            {intentError && (
+                                <p className="font-mono text-xs text-red-400/80">{intentError}</p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Terms */}
+                    {!isPaymentPhase && (
+                        <div
+                            className="group flex cursor-pointer items-center gap-3 pt-4"
+                            onClick={() => setTermsAccepted(!termsAccepted)}
+                        >
+                            <div className={cn(
+                                "flex h-5 w-5 items-center justify-center border border-primary/40 rounded transition-colors group-hover:border-accent-b",
+                                termsAccepted ? "bg-accent-b/10 border-accent-b" : "bg-transparent"
+                            )}>
+                                {termsAccepted && <Check className="h-3 w-3 text-accent-b" />}
+                            </div>
+                            <span className={cn(
+                                "font-mono text-xs transition-colors",
+                                termsAccepted ? "text-accent-b" : "text-primary/60 group-hover:text-primary"
+                            )}>
+                                I ACCEPT THE MISSION TERMS & LIABILITY PROTOCOLS
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Action Button */}
+                    <div className="pt-8 pb-12">
+                        {isPaymentPhase ? (
+                            /* Phase 2: Confirm payment with Stripe */
+                            <Button
+                                size="lg"
+                                className="w-full h-16 text-lg tracking-widest transition-all duration-500 rounded-lg bg-accent-b text-black hover:shadow-[0_0_30px_rgba(204,255,0,0.5)]"
+                                disabled={!stripe || !elements || loading}
+                                onClick={handleConfirmPayment}
+                            >
+                                {loading ? (
+                                    <span className="flex items-center gap-2">
+                                        <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                                        PROCESSING PAYMENT...
+                                    </span>
+                                ) : (
+                                    <>
+                                        CONFIRM & DEPLOY <ArrowRight className="ml-2 h-5 w-5" />
+                                    </>
+                                )}
+                            </Button>
+                        ) : (
+                            /* Phase 1: Validate form + create PaymentIntent */
+                            <Button
+                                size="lg"
+                                className={cn(
+                                    "w-full h-16 text-lg tracking-widest transition-all duration-500 rounded-lg",
+                                    isFormValid
+                                        ? "bg-accent-b text-black hover:shadow-[0_0_30px_rgba(204,255,0,0.5)]"
+                                        : "bg-primary/5 text-primary/20 cursor-not-allowed border-primary/10 hover:bg-primary/5"
+                                )}
+                                disabled={!isFormValid || creatingIntent}
+                                onClick={handleInitiatePayment}
+                            >
+                                {creatingIntent ? (
+                                    <span className="flex items-center gap-2">
+                                        <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                                        INITIALIZING PAYMENT...
+                                    </span>
+                                ) : (
+                                    <>
+                                        {isAuthenticated ? "PROCEED TO PAYMENT" : wantsAccount ? "CREATE ACCOUNT & PAY" : "PROCEED AS GUEST"}
+                                        {isFormValid && <ArrowRight className="ml-2 h-5 w-5" />}
+                                    </>
+                                )}
+                            </Button>
+                        )}
+
+                        {!isFormValid && !isPaymentPhase && (
+                            <p className="mt-3 text-center font-mono text-[10px] text-red-500/60 animate-pulse">
+                                [!] FILL MANDATORY FIELDS TO UNLOCK SYSTEM
+                            </p>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </motion.div>
+    );
+}
+
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+function CheckoutHeader({ closeCheckout }: { closeCheckout: () => void }) {
+    const { isAuthenticated } = useAuth();
+    const { user } = useAuth();
+
+    return (
+        <div className="flex-shrink-0 flex items-center justify-between border-b bg-black/90 px-8 py-5 backdrop-blur-xl z-20" style={{ borderColor: 'var(--color-border-strong)' }}>
+            <div className="flex items-center gap-3">
+                <Shield className="h-5 w-5 text-accent-b" />
+                <h2 className="font-headline text-2xl font-bold tracking-widest text-white">
+                    COMMAND CENTER <span className="text-accent-b">// CHECKOUT</span>
+                </h2>
+            </div>
+            <div className="flex items-center gap-4">
+                {isAuthenticated ? (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent-b/10 border border-accent-b/30">
+                        <motion.div
+                            className="w-2 h-2 rounded-full bg-accent-b"
+                            animate={{ scale: [1, 1.2, 1] }}
+                            transition={{ duration: 1.5, repeat: Infinity }}
+                        />
+                        <span className="font-mono text-[10px] text-accent-b tracking-wider">
+                            {user?.shortId || "PILOT ACTIVE"}
+                        </span>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-primary/20">
+                        <User className="w-3 h-3 text-primary/40" />
+                        <span className="font-mono text-[10px] text-primary/40 tracking-wider">
+                            GUEST MODE
+                        </span>
+                    </div>
+                )}
+                <button onClick={closeCheckout} className="group p-2 transition-colors hover:bg-accent-b/10 rounded-md">
+                    <X className="h-6 w-6 text-primary/60 transition-colors group-hover:text-accent-b" />
+                </button>
+            </div>
+        </div>
+    );
+}
 
 function SectionHeader({ title, className }: { title: string, className?: string }) {
     return (
@@ -607,8 +760,8 @@ function HoloInput({
                     className={cn(
                         "h-12 w-full rounded-md border-b border-primary/20 bg-white/5 px-4 font-mono text-sm text-primary caret-accent-b transition-all focus:outline-none placeholder:text-primary/20",
                         (isFocused || (value && value.length > 0)) && required
-                            ? "border-accent-b shadow-[0_4px_12px_-6px_rgba(204,255,0,0.3)] bg-accent-b/5"
-                            : "focus:border-accent-b focus:bg-accent-b/5",
+                            ? "border-accent-a shadow-[0_4px_12px_-6px_rgba(204,255,0,0.3)] bg-accent-a/5"
+                            : "focus:border-accent-a focus:bg-accent-a/5",
                         disabled && "opacity-50 cursor-not-allowed"
                     )}
                     placeholder={displayPlaceholder}
@@ -625,53 +778,4 @@ function HoloInput({
             </div>
         </div>
     );
-}
-
-function PaymentToggle({
-    active,
-    onClick,
-    label,
-    icon: Icon,
-    compact
-}: {
-    active: boolean,
-    onClick: () => void,
-    label: string,
-    icon?: React.ComponentType<{ className?: string }>,
-    compact?: boolean
-}) {
-    return (
-        <button
-            onClick={onClick}
-            className={cn(
-                "relative flex w-full items-center gap-3 border transition-all duration-300 overflow-hidden rounded-md",
-                compact ? "h-12 justify-center px-4" : "h-14 px-6",
-                active
-                    ? "border-accent-b bg-accent-b/10 text-accent-b shadow-[0_0_15px_rgba(204,255,0,0.1)]"
-                    : "border-primary/10 bg-white/5 text-primary/60 hover:bg-white/10 hover:border-primary/30"
-            )}
-        >
-            {/* Scanline Effect on Active */}
-            {active && (
-                <motion.div
-                    layoutId="payment-scan"
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-accent-b/20 to-transparent"
-                    initial={{ x: "-100%" }}
-                    animate={{ x: "100%" }}
-                    transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-                />
-            )}
-
-            {Icon && <Icon className="h-5 w-5" />}
-            <span className="font-mono text-xs font-bold tracking-wider relative z-10">{label}</span>
-
-            {active && (
-                <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-accent-b shadow-[0_0_5px_#CCFF00]"
-                />
-            )}
-        </button>
-    )
 }

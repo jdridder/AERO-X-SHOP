@@ -72,7 +72,7 @@ export function CartMenu() {
                                 ) : (
                                     <div className="space-y-6">
                                         {cart.items.map((item) => (
-                                            <div key={item.id} className="flex gap-4">
+                                            <div key={`${item.id}__${item.selectedSize ?? ""}`} className="flex gap-4">
                                                 <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border border-primary/20 bg-white/5">
                                                     <Image
                                                         src={item.image_url}
@@ -87,27 +87,30 @@ export function CartMenu() {
                                                             <h3 className="font-headline text-sm font-bold text-white">{item.name}</h3>
                                                             <p className="font-mono text-sm text-accent-a">${item.price * item.quantity}</p>
                                                         </div>
-                                                        <p className="font-mono text-[10px] text-primary/60">{item.category}</p>
+                                                        <p className="font-mono text-[10px] text-primary/60">
+                                                            {item.category}
+                                                            {item.selectedSize && <span className="ml-2 text-accent-b">SIZE: {item.selectedSize}</span>}
+                                                        </p>
                                                     </div>
 
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-3 rounded-md border border-primary/10 bg-white/5 px-2 py-1">
                                                             <button
-                                                                onClick={() => cart.updateQuantity(item.id, item.quantity - 1)}
+                                                                onClick={() => cart.updateQuantity(item.id, item.quantity - 1, item.selectedSize)}
                                                                 className="text-primary/60 hover:text-white"
                                                             >
                                                                 <Minus className="h-3 w-3" />
                                                             </button>
                                                             <span className="font-mono text-xs text-white w-4 text-center">{item.quantity}</span>
                                                             <button
-                                                                onClick={() => cart.updateQuantity(item.id, item.quantity + 1)}
+                                                                onClick={() => cart.updateQuantity(item.id, item.quantity + 1, item.selectedSize)}
                                                                 className="text-primary/60 hover:text-white"
                                                             >
                                                                 <Plus className="h-3 w-3" />
                                                             </button>
                                                         </div>
                                                         <button
-                                                            onClick={() => cart.removeItem(item.id)}
+                                                            onClick={() => cart.removeItem(item.id, item.selectedSize)}
                                                             className="text-primary/40 hover:text-red-400 transition-colors"
                                                         >
                                                             <Trash2 className="h-4 w-4" />

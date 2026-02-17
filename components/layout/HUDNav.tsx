@@ -1,16 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
 import { GlassPanel } from "@/components/ui/GlassPanel";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { useCart } from "@/lib/store/useCart";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useCart } from "@/lib/store/useCart";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
-import { Hexagon, ShoppingBag, Activity, Home, Package, User, LayoutDashboard, LogOut } from "lucide-react";
-import Image from "next/image";
+import { AnimatePresence, motion } from "framer-motion";
+import { Activity, Hexagon, Home, LayoutDashboard, LogOut, Package, ShoppingBag, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 export function HUDNav() {
     const pathname = usePathname();
@@ -24,35 +22,8 @@ export function HUDNav() {
     ];
 
     return (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 w-full max-w-lg px-4">
-            {/* Two-Tier Command Center */}
-            <div className="flex flex-col gap-3">
-                {/* TIER 1: Brand Anchor (Top) */}
-                <GlassPanel
-                    className="flex items-center justify-between py-2 px-6 rounded-full border-primary/20 backdrop-blur-xl shadow-[var(--hud-shadow)]"
-                    style={{ background: 'var(--hud-bg)' }}
-                >
-                    <div className="flex items-center gap-3">
-                        <Link href="/">
-                            <Image src="/logos/wasp-logo-black.svg"
-                                alt="Wasp Aerodynamics Logo"
-                                width={48}
-                                height={48}
-                                className="invert-0 dark:invert transition-all duration-300" />
-                        </Link>
-                        <span className="font-headline font-bold text-sm tracking-widest text-white">WASP COCKPIT</span>
-                    </div>
-
-                    {/* Active Pilot Indicator */}
-                    <ActivePilotIndicator
-                        isAuthenticated={isAuthenticated}
-                        isLoading={isLoading}
-                        user={user}
-                        authPath={authPath}
-                    />
-                </GlassPanel>
-
-                {/* TIER 2: Functional Navigation (Bottom) */}
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-lg px-4">
+            {/* Functional Navigation */}
                 <GlassPanel
                     className="flex items-center justify-between px-4 py-3 rounded-full border-primary/20 backdrop-blur-xl gap-4 shadow-[var(--hud-shadow)]"
                     style={{ background: 'var(--hud-bg)' }}
@@ -100,16 +71,18 @@ export function HUDNav() {
                     </nav>
 
                     {/* Theme Toggle */}
-                    <div className="pl-2 pr-2 border-l border-r border-primary/10 flex items-center">
-                        <ThemeToggle />
-                    </div>
+                    <ActivePilotIndicator
+                        isAuthenticated={isAuthenticated}
+                        isLoading={isLoading}
+                        user={user}
+                        authPath={authPath}
+                    />
 
                     {/* Checkout Button */}
                     <div className="pl-2">
                         <AttentionMorphButton />
                     </div>
                 </GlassPanel>
-            </div>
         </div>
     );
 }

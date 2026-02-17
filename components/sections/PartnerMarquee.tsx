@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { useState } from "react";
 
 // Partner data with TypeScript typing
@@ -69,7 +69,7 @@ export function PartnerMarquee() {
                                 alt={partner.name}
                                 width={120}
                                 height={40}
-                                className="invert-0 dark:invert transition-all duration-300"
+                                className="transition-all duration-300"
                             />
                         </motion.div>
                     ))}

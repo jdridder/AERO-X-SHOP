@@ -1,2 +1,8 @@
 node_modules
 .next
+backend/data
+public
+
+# Environment files with secrets
+.env*.local
+backend/.env

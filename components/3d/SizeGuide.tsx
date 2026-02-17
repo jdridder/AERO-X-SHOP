@@ -1,6 +1,7 @@
 "use client";
 
 import { ClientOnly } from "@/components/ui/ClientOnly";
+import { MeasurementDef, ProductAnnotation } from "@/lib/services/api";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useEffect, useRef } from "react";
@@ -22,6 +23,8 @@ if (typeof window !== "undefined") {
 
 interface SizeGuideProps {
     modelPath?: string;
+    annotations?: ProductAnnotation[];
+    measurements?: MeasurementDef[];
     onReady?: () => void;
 }
 
@@ -47,6 +50,13 @@ const ANNOTATIONS: AnnotationData[] = [
     { id: "chest", label: "A", position: new THREE.Vector3(0, 0, 0), value: "CHEST" },
     { id: "length", label: "B", position: new THREE.Vector3(0, 0, 0), value: "LENGTH" },
     { id: "sleeve", label: "C", position: new THREE.Vector3(0, 0, 0), value: "SLEEVE" },
+];
+
+// Default T-shirt measurements (fallback when no measurements prop is provided)
+const DEFAULT_MEASUREMENTS: MeasurementDef[] = [
+    { id: "chest", type: "ring", stagger: 0.15, xFraction: 0.5, yFraction: 0.62, zFraction: 0.5, rxFraction: 0.33, rzFraction: 0.53 },
+    { id: "length", type: "line", stagger: 0.25, start: [0.32, 0.02, 0.68], end: [0.32, 0.97, 0.68] },
+    { id: "sleeve", type: "line", stagger: 0.35, start: [0.80, 0.82, 0.63], end: [0.95, 0.60, 0.58] },
 ];
 
 // ============================================================================
@@ -281,109 +291,121 @@ class MeasurementArrowSystem {
     private geometries: THREE.BufferGeometry[];
     private anchorPoints: Record<string, THREE.Vector3>;
 
-    constructor(tBBox: THREE.Box3) {
+    constructor(tBBox: THREE.Box3, defs: MeasurementDef[]) {
         this.group = new THREE.Group();
         this.materials = [];
         this.geometries = [];
+        this.anchorPoints = {};
 
         const tSize = tBBox.getSize(new THREE.Vector3());
         const tMin = tBBox.min.clone();
-        const tMax = tBBox.max.clone();
         const tCenter = tBBox.getCenter(new THREE.Vector3());
 
         const tubeRadius = 0.01;
         const arrowRadius = 0.02;
         const arrowHeight = 0.03;
 
-        // ── A: Chest Ring (Elliptical wrap) ────────────────────────
-        const chestY = tMin.y + tSize.y * 0.62;
-        const rxChest = tSize.x * 0.33;
-        const rzChest = tSize.z * 0.53;
+        for (const def of defs) {
+            const mat = this.createMaterial(def.stagger);
+            this.materials.push(mat);
 
-        const chestPoints: THREE.Vector3[] = [];
-        const chestSegs = 72;
-        for (let i = 0; i <= chestSegs; i++) {
-            const angle = (i / chestSegs) * Math.PI * 2;
-            chestPoints.push(
-                new THREE.Vector3(
-                    Math.cos(angle) * rxChest + tCenter.x,
-                    chestY,
-                    Math.sin(angle) * rzChest + tCenter.z
-                )
-            );
+            if (def.type === "ring") {
+                this.buildRing(def, tMin, tSize, tCenter, tubeRadius, mat);
+            } else {
+                this.buildLine(def, tMin, tSize, tubeRadius, arrowRadius, arrowHeight, mat);
+            }
         }
-        const chestCurve = new THREE.CatmullRomCurve3(chestPoints, true);
-        const chestGeom = new THREE.TubeGeometry(chestCurve, 72, tubeRadius, 8, true);
-        const chestMat = this.createMaterial(0.15);
-        const chestMesh = new THREE.Mesh(chestGeom, chestMat);
-        this.group.add(chestMesh);
-        this.geometries.push(chestGeom);
-        this.materials.push(chestMat);
+    }
 
-        // ── B: Length Arrow (Vertical — hem to collar) ─────────────
-        const hemY = tMin.y + tSize.y * 0.02;
-        const collarY = tMin.y + tSize.y * 0.97;
-        const lengthX = tCenter.x - tSize.x * 0.18;
-        const lengthZ = tMax.z * 0.35;
+    // ── Ring measurement (circumference) ────────────────────────
+    private buildRing(
+        def: Extract<MeasurementDef, { type: "ring" }>,
+        tMin: THREE.Vector3,
+        tSize: THREE.Vector3,
+        tCenter: THREE.Vector3,
+        tubeRadius: number,
+        mat: THREE.ShaderMaterial,
+    ) {
+        const x = tMin.x + tSize.x * def.xFraction;
+        const y = tMin.y + tSize.y * def.yFraction;
+        const z = tMin.z + tSize.z * def.rzFraction;
+        const rx = tSize.x * def.rxFraction;
+        const rz = tSize.z * def.rzFraction;
 
-        const lengthStart = new THREE.Vector3(lengthX, hemY, lengthZ);
-        const lengthEnd = new THREE.Vector3(lengthX, collarY, lengthZ);
-        const lengthCurve = new THREE.LineCurve3(lengthStart, lengthEnd);
-        const lengthGeom = new THREE.TubeGeometry(lengthCurve, 32, tubeRadius, 8, false);
-        const lengthMat = this.createMaterial(0.25);
-        const lengthMesh = new THREE.Mesh(lengthGeom, lengthMat);
-        this.group.add(lengthMesh);
-        this.geometries.push(lengthGeom);
-        this.materials.push(lengthMat);
-
-        // Arrowheads for length
-        const lengthDirUp = new THREE.Vector3(0, 1, 0);
-        this.addArrowhead(lengthEnd, lengthDirUp, arrowRadius, arrowHeight, lengthMat);
-        this.addArrowhead(lengthStart, lengthDirUp.clone().negate(), arrowRadius, arrowHeight, lengthMat);
-
-        // ── C: Sleeve Arrow (Diagonal — shoulder seam to opening) ──
-        const shoulderPos = new THREE.Vector3(
-            tCenter.x + tSize.x * 0.30,
-            tMin.y + tSize.y * 0.82,
-            tMax.z * 0.25
-        );
-        const sleeveEndPos = new THREE.Vector3(
-            tMax.x * 0.90,
-            tMin.y + tSize.y * 0.60,
-            tMax.z * 0.15
+        // Clamp tilt to [-90, 90] and convert to radians
+        const tiltRad = THREE.MathUtils.degToRad(
+            THREE.MathUtils.clamp(def.tiltDeg ?? 0, -90, 90),
         );
 
-        const sleeveCurve = new THREE.LineCurve3(shoulderPos, sleeveEndPos);
-        const sleeveGeom = new THREE.TubeGeometry(sleeveCurve, 32, tubeRadius, 8, false);
-        const sleeveMat = this.createMaterial(0.35);
-        const sleeveMesh = new THREE.Mesh(sleeveGeom, sleeveMat);
-        this.group.add(sleeveMesh);
-        this.geometries.push(sleeveGeom);
-        this.materials.push(sleeveMat);
+        const cosT = Math.cos(tiltRad);
+        const sinT = Math.sin(tiltRad);
 
-        // Arrowheads for sleeve
-        const sleeveDir = sleeveEndPos.clone().sub(shoulderPos).normalize();
-        this.addArrowhead(sleeveEndPos, sleeveDir, arrowRadius, arrowHeight, sleeveMat);
-        this.addArrowhead(shoulderPos, sleeveDir.clone().negate(), arrowRadius, arrowHeight, sleeveMat);
+        const points: THREE.Vector3[] = [];
+        const segs = 72;
+        for (let i = 0; i <= segs; i++) {
+            const angle = (i / segs) * Math.PI * 2;
+            // Flat ring point relative to center
+            const lx = Math.cos(angle) * rx;
+            const lz = Math.sin(angle) * rz;
+            // Rotate around Z-axis: affects X and Y
+            points.push(new THREE.Vector3(
+                lx * cosT + x,
+                lx * sinT + y,
+                lz + z,
+            ));
+        }
 
-        // ── Anchor points for annotation labels ────────────────────
-        this.anchorPoints = {
-            chest: new THREE.Vector3(
-                Math.cos(Math.PI / 4) * rxChest + tCenter.x + 0.2,
-                chestY,
-                Math.sin(Math.PI / 4) * rzChest + tCenter.z + 0.15
-            ),
-            length: new THREE.Vector3(
-                lengthX - 0.1,
-                (hemY + collarY) / 3,
-                lengthZ + 0.15
-            ),
-            sleeve: new THREE.Vector3(
-                (shoulderPos.x + sleeveEndPos.x) / 2 + 0.2,
-                (shoulderPos.y + sleeveEndPos.y) / 2 + 0.15,
-                (shoulderPos.z + sleeveEndPos.z) / 2 + 0.1
-            ),
-        };
+        const curve = new THREE.CatmullRomCurve3(points, true);
+        const geom = new THREE.TubeGeometry(curve, 72, tubeRadius, 8, true);
+        this.group.add(new THREE.Mesh(geom, mat));
+        this.geometries.push(geom);
+
+        // Anchor at ~45° offset for label placement (also tilted)
+        const anchorLx = Math.cos(Math.PI / 4) * rx;
+        this.anchorPoints[def.id] = new THREE.Vector3(
+            anchorLx * cosT + tCenter.x + 0.2,
+            anchorLx * sinT + y,
+            Math.sin(Math.PI / 4) * rz + tCenter.z + 0.15,
+        );
+    }
+
+    // ── Line measurement (linear distance) ──────────────────────
+    private buildLine(
+        def: Extract<MeasurementDef, { type: "line" }>,
+        tMin: THREE.Vector3,
+        tSize: THREE.Vector3,
+        tubeRadius: number,
+        arrowRadius: number,
+        arrowHeight: number,
+        mat: THREE.ShaderMaterial,
+    ) {
+        const start = new THREE.Vector3(
+            tMin.x + tSize.x * def.start[0],
+            tMin.y + tSize.y * def.start[1],
+            tMin.z + tSize.z * def.start[2],
+        );
+        const end = new THREE.Vector3(
+            tMin.x + tSize.x * def.end[0],
+            tMin.y + tSize.y * def.end[1],
+            tMin.z + tSize.z * def.end[2],
+        );
+
+        const curve = new THREE.LineCurve3(start, end);
+        const geom = new THREE.TubeGeometry(curve, 32, tubeRadius, 8, false);
+        this.group.add(new THREE.Mesh(geom, mat));
+        this.geometries.push(geom);
+
+        // Arrowheads at both ends
+        const dir = end.clone().sub(start).normalize();
+        this.addArrowhead(end, dir, arrowRadius, arrowHeight, mat);
+        this.addArrowhead(start, dir.clone().negate(), arrowRadius, arrowHeight, mat);
+
+        // Anchor at midpoint with slight offset for label placement
+        this.anchorPoints[def.id] = new THREE.Vector3(
+            (start.x + end.x) / 2 + 0.2,
+            (start.y + end.y) / 2 + 0.15,
+            (start.z + end.z) / 2 + 0.1,
+        );
     }
 
     private createMaterial(stagger: number): THREE.ShaderMaterial {
@@ -483,7 +505,7 @@ function createAnnotationElement(data: AnnotationData): HTMLDivElement {
 // MAIN COMPONENT
 // ============================================================================
 
-function SizeGuideScene({ modelPath, onReady }: SizeGuideProps) {
+function SizeGuideScene({ modelPath, annotations: annotationsProp, measurements: measurementsProp, onReady }: SizeGuideProps) {
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -663,12 +685,21 @@ function SizeGuideScene({ modelPath, onReady }: SizeGuideProps) {
                 group.add(contourLines.getObject());
 
                 // ── Create measurement arrows ─────────────────────────
-                measurementArrows = new MeasurementArrowSystem(transformedBBox);
+                const resolvedMeasurements = measurementsProp ?? DEFAULT_MEASUREMENTS;
+                measurementArrows = new MeasurementArrowSystem(transformedBBox, resolvedMeasurements);
                 group.add(measurementArrows.getObject());
 
                 // ── Annotations (anchored to arrow midpoints) ─────────
                 const anchorPoints = measurementArrows.getAnchorPoints();
-                ANNOTATIONS.forEach((data) => {
+                const resolvedAnnotations: AnnotationData[] = annotationsProp
+                    ? annotationsProp.map((a) => ({
+                          id: a.id,
+                          label: a.label,
+                          value: a.value,
+                          position: new THREE.Vector3(0, 0, 0),
+                      }))
+                    : ANNOTATIONS;
+                resolvedAnnotations.forEach((data) => {
                     const element = createAnnotationElement(data);
                     const label = new CSS2DObject(element);
                     label.position.copy(anchorPoints[data.id] || data.position);
@@ -803,7 +834,7 @@ function SizeGuideScene({ modelPath, onReady }: SizeGuideProps) {
             window.removeEventListener("resize", handleResize);
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [modelPath]);
+    }, [modelPath, measurementsProp]);
 
     return (
         <div
@@ -818,7 +849,7 @@ function SizeGuideScene({ modelPath, onReady }: SizeGuideProps) {
 // EXPORTED COMPONENT
 // ============================================================================
 
-export function SizeGuide({ modelPath, onReady }: SizeGuideProps) {
+export function SizeGuide({ modelPath, annotations, measurements, onReady }: SizeGuideProps) {
     return (
         <ClientOnly
             fallback={
@@ -829,7 +860,7 @@ export function SizeGuide({ modelPath, onReady }: SizeGuideProps) {
                 </div>
             }
         >
-            <SizeGuideScene modelPath={modelPath} onReady={onReady} />
+            <SizeGuideScene modelPath={modelPath} annotations={annotations} measurements={measurements} onReady={onReady} />
         </ClientOnly>
     );
 }

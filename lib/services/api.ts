@@ -1,6 +1,50 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-// Product types
+// ── Product types ───────────────────────────────────────────────
+
+export interface ProductImage {
+  src: string;
+  alt: string;
+}
+
+export interface ProductAnnotation {
+  id: string;
+  label: string;
+  value: string;
+}
+
+export interface SizeEntry {
+  size: string;
+  measurements: Record<string, string>;
+}
+
+export interface StorytellingBlock {
+  title: string;
+  text: string;
+  image: string;
+  layoutDirection: "normal" | "reversed";
+}
+
+export type MeasurementDef =
+  | {
+        id: string;
+        type: "ring";
+        stagger: number;
+        xFraction: number;
+        yFraction: number;
+        zFraction: number;
+        rxFraction: number;
+        rzFraction: number;
+        tiltDeg?: number;
+    }
+  | {
+        id: string;
+        type: "line";
+        stagger: number;
+        start: [number, number, number];
+        end: [number, number, number];
+    };
+
 export interface Product {
   id: string;
   slug: string;
@@ -8,6 +52,12 @@ export interface Product {
   price: number;
   category: "APPAREL" | "EQUIPMENT" | "ACCESSORY";
   image_url: string;
+  images?: ProductImage[];
+  threeModelPath?: string;
+  annotations?: ProductAnnotation[];
+  availableSizes?: SizeEntry[];
+  measurements?: MeasurementDef[];
+  storytelling?: StorytellingBlock[];
   tech_stats: {
     weight?: string;
     drag_coefficient?: string;

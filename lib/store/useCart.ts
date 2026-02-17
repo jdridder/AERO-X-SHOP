@@ -4,6 +4,7 @@ import { Product } from '@/lib/services/api';
 
 export interface CartItem extends Product {
     quantity: number;
+    selectedSize?: string;
 }
 
 interface CartState {
@@ -15,9 +16,9 @@ interface CartState {
     openCheckout: () => void;
     closeCheckout: () => void;
     toggleCheckout: () => void;
-    addItem: (product: Product) => void;
-    removeItem: (productId: string) => void;
-    updateQuantity: (productId: string, quantity: number) => void;
+    addItem: (product: Product, selectedSize?: string) => void;
+    removeItem: (productId: string, selectedSize?: string) => void;
+    updateQuantity: (productId: string, quantity: number, selectedSize?: string) => void;
     clearCart: () => void;
     total: () => number;
 }
@@ -33,31 +34,44 @@ export const useCart = create<CartState>()(
             openCheckout: () => set({ isCheckoutOpen: true, isOpen: false }),
             closeCheckout: () => set({ isCheckoutOpen: false }),
             toggleCheckout: () => set((state) => ({ isCheckoutOpen: !state.isCheckoutOpen, isOpen: false })),
-            addItem: (product) => {
+            addItem: (product, selectedSize) => {
                 const currentItems = get().items;
-                const existingItem = currentItems.find((item) => item.id === product.id);
+                const existingItem = currentItems.find(
+                    (item) => item.id === product.id && item.selectedSize === selectedSize
+                );
 
                 if (existingItem) {
                     set({
                         items: currentItems.map((item) =>
-                            item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+                            item.id === product.id && item.selectedSize === selectedSize
+                                ? { ...item, quantity: item.quantity + 1 }
+                                : item
                         ),
-                        isOpen: true, // Open cart when adding item
+                        isOpen: true,
                     });
                 } else {
-                    set({ items: [...currentItems, { ...product, quantity: 1 }], isOpen: true });
+                    set({
+                        items: [...currentItems, { ...product, quantity: 1, selectedSize }],
+                        isOpen: true,
+                    });
                 }
             },
-            removeItem: (productId) => {
-                set({ items: get().items.filter((item) => item.id !== productId) });
+            removeItem: (productId, selectedSize) => {
+                set({
+                    items: get().items.filter(
+                        (item) => !(item.id === productId && item.selectedSize === selectedSize)
+                    ),
+                });
             },
-            updateQuantity: (productId, quantity) => {
+            updateQuantity: (productId, quantity, selectedSize) => {
                 if (quantity <= 0) {
-                    get().removeItem(productId);
+                    get().removeItem(productId, selectedSize);
                 } else {
                     set({
                         items: get().items.map((item) =>
-                            item.id === productId ? { ...item, quantity } : item
+                            item.id === productId && item.selectedSize === selectedSize
+                                ? { ...item, quantity }
+                                : item
                         ),
                     });
                 }
@@ -70,7 +84,6 @@ export const useCart = create<CartState>()(
         {
             name: 'aero-x-cart-storage',
             storage: createJSONStorage(() => localStorage),
-            // Only persist items, not UI state
             partialize: (state) => ({ items: state.items }),
         }
     )

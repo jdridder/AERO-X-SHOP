@@ -1,14 +1,21 @@
 "use client";
 
-// import { ProductViewer } from "@/components/3d/ProductViewer";
 import { SizeGuideSection } from "@/components/sections/SizeGuideSection";
 import { AddToCartButton } from "@/components/shop/AddToCartButton";
+import { DesignLabCTA } from "@/components/shop/DesignLabCTA";
+import { DynamicStorytelling } from "@/components/shop/DynamicStorytelling";
 import { PerformanceRadar } from "@/components/shop/PerformanceRadar";
+import { ProductHUD } from "@/components/shop/ProductHUD";
+import { ProductImageDeck } from "@/components/shop/ProductImageDeck";
+import { SizeSelector } from "@/components/shop/SizeSelector";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { useProduct } from "@/lib/hooks/useProducts";
 import { motion } from "framer-motion";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
+import { useState } from "react";
+
+// ── Loading & Error States ──────────────────────────────────────
 
 function ProductLoadingSkeleton() {
     return (
@@ -68,112 +75,114 @@ function ProductErrorState({ error, onRetry }: { error: string; onRetry: () => v
     );
 }
 
+// ── Product Page Template ───────────────────────────────────────
+
 export default function ProductPage() {
     const params = useParams();
     const slug = params.slug as string;
     const { product, isLoading, error, refetch } = useProduct(slug);
+    const [selectedSize, setSelectedSize] = useState<string | null>(null);
 
-    if (isLoading) {
-        return <ProductLoadingSkeleton />;
-    }
+    if (isLoading) return <ProductLoadingSkeleton />;
+    if (error || !product) return <ProductErrorState error={error || "Product not found"} onRetry={refetch} />;
 
-    if (error || !product) {
-        return <ProductErrorState error={error || "Product not found"} onRetry={refetch} />;
-    }
+    const images = product.images?.length
+        ? product.images
+        : [{ src: product.image_url, alt: product.name }];
 
     return (
-        <div className="relative min-h-[400vh]">
-            {/* <ProductViewer />
+        <div className="relative pb-28">
 
-            {/* Overlay Content - Fixed for now, or scrolling with the page */}
-            <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-10 flex flex-col justify-between p-8 md:p-12">
-                {/* Header */}
-                <div className="flex justify-between items-start pointer-events-auto">
-                    <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.1 }}
-                    >
-                        <h3 className="text-accent-b font-mono text-xs mb-2">PROTOTYPE: {product.slug.toUpperCase()}</h3>
-                        <h1 className="font-headline text-5xl md:text-7xl font-bold uppercase">{product.name}</h1>
-                    </motion.div>
-                    <motion.div
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="text-right hidden md:block"
-                    >
-                        <div className="text-4xl font-headline font-bold">${product.price.toFixed(2)}</div>
-                        <div className="text-xs text-primary/60 font-mono">AVAILABLE NOW</div>
-                    </motion.div>
-                </div>
+            {/* ── HERO SECTION ─────────────────────────────────── */}
+            <section className="min-h-screen flex flex-col lg:flex-row gap-8 lg:gap-12 p-8 md:p-12 pt-24 md:pt-28">
+                {/* Left: Image Gallery */}
+                <motion.div
+                    initial={{ opacity: 0, x: -30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.6 }}
+                    className="w-full lg:w-1/2"
+                >
+                    <ProductImageDeck images={images} productName={product.name} />
+                </motion.div>
 
-                {/* Bottom Action Area */}
-                <div className="flex justify-between items-end pointer-events-auto">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                    >
-                        <GlassPanel className="hidden md:block w-72 p-6 space-y-4 holographic-glow">
-                            <h4 className="font-bold border-b border-primary/20 pb-2 uppercase tracking-widest text-[10px] text-accent-b">
-                                AERO-X Intelligence
+                {/* Right: Product Info */}
+                <motion.div
+                    initial={{ opacity: 0, x: 30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.6, delay: 0.15 }}
+                    className="w-full lg:w-1/2 space-y-6 lg:pt-8"
+                >
+                    <div>
+                        <span className="text-accent-b font-mono text-xs tracking-widest">
+                            PROTOTYPE: {product.slug.toUpperCase()}
+                        </span>
+                        <h1 className="font-headline text-4xl md:text-6xl lg:text-7xl font-bold uppercase mt-2">
+                            {product.name}
+                        </h1>
+                    </div>
+
+                    <div className="flex items-baseline gap-4">
+                        <span className="text-3xl md:text-4xl font-headline font-bold">
+                            ${product.price.toFixed(2)}
+                        </span>
+                        <span className="text-xs text-primary/50 font-mono tracking-wider">
+                            {product.category}
+                        </span>
+                    </div>
+
+                    {/* Performance Radar */}
+                    <GlassPanel className="holographic-glow p-6 space-y-4">
+                        <h4 className="font-bold border-b border-primary/20 pb-2 uppercase tracking-widest text-[10px] text-accent-b">
+                            AERO-X Intelligence
+                        </h4>
+                        <div className="py-2 flex justify-center">
+                            <PerformanceRadar stats={product.tech_stats} size={240} />
+                        </div>
+                    </GlassPanel>
+
+                    {/* Inline Size Selector */}
+                    {product.availableSizes && product.availableSizes.length > 0 && (
+                        <div className="space-y-3">
+                            <h4 className="font-mono text-xs tracking-widest text-accent-b uppercase">
+                                Select Size
                             </h4>
-                            <div className="py-2 flex justify-center">
-                                <PerformanceRadar stats={product.tech_stats} size={240} />
-                            </div>
-                        </GlassPanel>
-                    </motion.div>
+                            <SizeSelector
+                                sizes={product.availableSizes}
+                                selectedSize={selectedSize}
+                                onSizeChange={setSelectedSize}
+                            />
+                        </div>
+                    )}
 
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                    >
-                        <AddToCartButton product={product} />
-                    </motion.div>
-                </div>
+                    {/* Inline Add to Cart */}
+                    <AddToCartButton product={product} selectedSize={selectedSize} />
+                </motion.div>
+            </section>
 
-            </div>
+            {/* ── HOLOGRAPHIC SIZE GUIDE ───────────────────────── */}
+            {product.threeModelPath && (
+                <SizeGuideSection
+                    modelPath={product.threeModelPath}
+                    annotations={product.annotations}
+                    measurements={product.measurements}
+                    availableSizes={product.availableSizes}
+                />
+            )}
 
-            {/* Scroll Indicators / Storytelling text appearing as we scroll */}
-            <div className="absolute top-[100vh] w-full flex justify-center pointer-events-none">
-                <GlassPanel className="backdrop-blur-md bg-black/40 p-4">
-                    <h2 className="text-2xl font-headline">LAYER 1: THERMAL REGULATION</h2>
-                </GlassPanel>
-            </div>
+            {/* ── STORYTELLING SECTIONS ────────────────────────── */}
+            {product.storytelling?.map((block, index) => (
+                <DynamicStorytelling key={index} block={block} index={index} />
+            ))}
 
-            {/* Section 2: Holographic Size Guide */}
-            <div className="absolute top-[100vh] w-full">
-                <SizeGuideSection modelPath="/models/male-tee-model.glb" />
-            </div>
+            {/* ── DESIGN LAB CTA ──────────────────────────────── */}
+            <DesignLabCTA productName={product.name} />
 
-            <div className="absolute top-[300vh] w-full flex justify-center pointer-events-none">
-                <GlassPanel className="backdrop-blur-md bg-black/40 p-4">
-                    <h2 className="text-2xl font-headline">LAYER 2: STORY</h2>
-                </GlassPanel>
-            </div>
-
-            {/* <div className="rte">
-                <p data-mce-fragment="1">
-                    Erlebe die perfekte Kombination aus Stil und Funktionalität mit den Wasp Aerodynamics Arm Sleeves und ihren herausragenden Designs.
-                    Diese Sleeves vereinen sportliche Höchstleistung mit einem auffälligen Look und bieten dir alles,
-                    was du für Training und Wettkampf benötigst.</p>
-                <p data-mce-fragment="1"><strong data-mce-fragment="1">Hauptmerkmale</strong></p>
-                <ul data-mce-fragment="1">
-                <li data-mce-fragment="1"><strong data-mce-fragment="1">
-                    Hautähnliche Passform</strong>: Der Arm Sleeve passt sich dank hochwertiger, elastischer Materialien perfekt an die Haut an und minimiert Reibung.</li>
-                <li data-mce-fragment="1"><strong data-mce-fragment="1">Einzigartige Designs</strong>: Die Designs unserer Arm Sleeves verleihen deinem Sport-Outfit einen frischen, dynamischen Look.</li>
-                <li data-mce-fragment="1"><strong data-mce-fragment="1">Premium-Lycra</strong>: Hergestellt aus hochwertigem, atmungsaktivem Lycra, bietet der Sleeve nicht nur eine hervorragende Passform, sondern auch eine leichte Kompression.</li>
-                <li data-mce-fragment="1"><strong data-mce-fragment="1">Wärmend &amp; UV-Schutz</strong>: Der Sleeve schützt deine Arme vor Kälte oder UV-Strahlen, damit du bei jedem Wetter bestens ausgerüstet bist.</li>
-                <li data-mce-fragment="1"><strong data-mce-fragment="1">Feine Verarbeitung</strong>: Präzise verarbeitete Designelemente tragen zum hochwertigen Erscheinungsbild und zur Langlebigkeit des Sleeves bei.</li>
-                <li data-mce-fragment="1"><strong data-mce-fragment="1">Von Athleten inspiriert</strong>: Entwickelt von und für Athleten, die sowohl Stil als auch Leistung schätzen – ideal für Trainingseinheiten und Wettkämpfe.</li>
-                </ul>
-                <p data-mce-fragment="1">Mit den Wasp Aerodynamics Arm Sleeves siehst du nicht nur großartig aus, sondern profitierst auch von herausragender Funktionalität, die dich in jeder Situation unterstützt.</p>
-                <p data-mce-fragment="1"><strong data-mce-fragment="1">Größe</strong></p>
-                <p data-mce-fragment="1">Das Model ist 195 cm groß, wiegt 86 kg und trägt Größe M mit einem Bizepsumfang von 28 cm. Die Arm Sleeves fallen etwas größer aus. Wähle eine Nummer kleiner.</p>
-            </div> */}
-
+            {/* ── STICKY HUD (appears on scroll) ──────────────── */}
+            <ProductHUD
+                product={product}
+                selectedSize={selectedSize}
+                onSizeChange={setSelectedSize}
+            />
         </div>
     );
 }

@@ -24,7 +24,7 @@ export function OrderManifest() {
                 <AnimatePresence mode="popLayout">
                     {items.map((item) => (
                         <motion.div
-                            key={item.id}
+                            key={`${item.id}__${item.selectedSize ?? ""}`}
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
@@ -36,6 +36,9 @@ export function OrderManifest() {
                                     {item.name}
                                 </h4>
                                 <div className="flex items-center gap-2 mt-1">
+                                    {item.selectedSize && (
+                                        <span className="font-mono text-[10px] text-accent-b">SIZE: {item.selectedSize}</span>
+                                    )}
                                     <span className="font-mono text-[10px] text-primary/60">QTY: {item.quantity}</span>
                                     <span className="font-mono text-[10px] text-primary/60">x</span>
                                     <span className="font-mono text-[10px] text-primary/60">${item.price.toFixed(2)}</span>

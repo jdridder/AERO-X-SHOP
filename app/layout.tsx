@@ -19,10 +19,9 @@ export const metadata: Metadata = {
 
 import { CartMenu } from "@/components/commerce/CartMenu";
 import { CheckoutModal } from "@/components/commerce/CheckoutModal";
+import { Footer } from "@/components/layout/Footer";
 import { HUDNav } from "@/components/layout/HUDNav";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
-
-// ... imports
 
 export default function RootLayout({
   children,
@@ -42,6 +41,7 @@ export default function RootLayout({
         >
           <main className="min-h-screen relative flex flex-col">
             {children}
+            <Footer />
           </main>
           <HUDNav />
           <CartMenu />

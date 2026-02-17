@@ -2,26 +2,44 @@
 
 import { SizeGuide } from "@/components/3d/SizeGuide";
 import { GlassPanel } from "@/components/ui/GlassPanel";
+import { MeasurementDef, ProductAnnotation, SizeEntry } from "@/lib/services/api";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { Ruler } from "lucide-react";
 
 interface SizeGuideSectionProps {
     modelPath?: string;
+    annotations?: ProductAnnotation[];
+    measurements?: MeasurementDef[];
+    availableSizes?: SizeEntry[];
 }
 
-const SIZE_CHART = [
-    { size: "XS", chest: '32-34"', length: '26"', sleeve: '7.5"' },
-    { size: "S", chest: '34-36"', length: '27"', sleeve: '8"' },
-    { size: "M", chest: '38-40"', length: '28"', sleeve: '8.5"' },
-    { size: "L", chest: '42-44"', length: '29"', sleeve: '9"' },
-    { size: "XL", chest: '46-48"', length: '30"', sleeve: '9.5"' },
-    { size: "XXL", chest: '50-52"', length: '31"', sleeve: '10"' },
+const DEFAULT_SIZE_CHART: SizeEntry[] = [
+    { size: "XS", measurements: { chest: '32-34"', length: '26"', sleeve: '7.5"' } },
+    { size: "S", measurements: { chest: '34-36"', length: '27"', sleeve: '8"' } },
+    { size: "M", measurements: { chest: '38-40"', length: '28"', sleeve: '8.5"' } },
+    { size: "L", measurements: { chest: '42-44"', length: '29"', sleeve: '9"' } },
+    { size: "XL", measurements: { chest: '46-48"', length: '30"', sleeve: '9.5"' } },
+    { size: "XXL", measurements: { chest: '50-52"', length: '31"', sleeve: '10"' } },
 ];
 
-export function SizeGuideSection({ modelPath }: SizeGuideSectionProps) {
+const DEFAULT_ANNOTATIONS: ProductAnnotation[] = [
+    { id: "chest", label: "A", value: "CHEST" },
+    { id: "length", label: "B", value: "LENGTH" },
+    { id: "sleeve", label: "C", value: "SLEEVE" },
+];
+
+export function SizeGuideSection({ modelPath, annotations, measurements, availableSizes }: SizeGuideSectionProps) {
     const [isReady, setIsReady] = useState(false);
-    const [selectedSize, setSelectedSize] = useState("M");
+    const sizeChart = availableSizes ?? DEFAULT_SIZE_CHART;
+    const annotationData = annotations ?? DEFAULT_ANNOTATIONS;
+    const [selectedSize, setSelectedSize] = useState(sizeChart[Math.min(2, sizeChart.length - 1)]?.size ?? "M");
+
+    // Build annotation lookup: id -> { label, value }
+    const annotationMap = new Map(annotationData.map((a) => [a.id, a]));
+
+    // Get measurement keys from the first size entry
+    const measurementKeys = sizeChart.length > 0 ? Object.keys(sizeChart[0].measurements) : [];
 
     return (
         <section
@@ -51,6 +69,8 @@ export function SizeGuideSection({ modelPath }: SizeGuideSectionProps) {
             {/* 3D Size Guide Hologram */}
             <SizeGuide
                 modelPath={modelPath}
+                annotations={annotationData}
+                measurements={measurements}
                 onReady={() => setIsReady(true)}
             />
 
@@ -72,49 +92,60 @@ export function SizeGuideSection({ modelPath }: SizeGuideSectionProps) {
 
                     {/* Size Buttons */}
                     <div className="grid grid-cols-3 gap-2 mb-4">
-                        {SIZE_CHART.map((item) => (
+                        {sizeChart.map((entry) => (
                             <button
-                                key={item.size}
-                                onClick={() => setSelectedSize(item.size)}
+                                key={entry.size}
+                                onClick={() => setSelectedSize(entry.size)}
                                 className={`
                                     py-2 px-3 rounded-md font-mono text-xs font-bold
                                     transition-all duration-300 border
-                                    ${selectedSize === item.size
+                                    ${selectedSize === entry.size
                                         ? "bg-accent-b/20 border-accent-b text-accent-b shadow-[0_0_15px_rgba(204,255,0,0.3)]"
                                         : "bg-transparent border-primary/20 text-primary/60 hover:border-accent-a/40 hover:text-primary"
                                     }
                                 `}
                             >
-                                {item.size}
+                                {entry.size}
                             </button>
                         ))}
                     </div>
 
-                    {/* Selected Size Details */}
+                    {/* Selected Size Measurements */}
                     <div className="space-y-2">
-                        {SIZE_CHART.filter(s => s.size === selectedSize).map((item) => (
-                            <div key={item.size} className="space-y-2">
-                                <div className="flex justify-between items-center py-2 border-b border-primary/10">
-                                    <span className="font-mono text-[10px] text-primary/50 tracking-wider">A: CHEST</span>
-                                    <span className="font-mono text-sm text-accent-b font-bold">{item.chest}</span>
+                        {sizeChart
+                            .filter((s) => s.size === selectedSize)
+                            .map((entry) => (
+                                <div key={entry.size} className="space-y-2">
+                                    {measurementKeys.map((key, idx) => {
+                                        const annotation = annotationMap.get(key);
+                                        const displayLabel = annotation
+                                            ? `${annotation.label}: ${annotation.value}`
+                                            : key.toUpperCase();
+                                        return (
+                                            <div
+                                                key={key}
+                                                className={`flex justify-between items-center py-2 ${
+                                                    idx < measurementKeys.length - 1 ? "border-b border-primary/10" : ""
+                                                }`}
+                                            >
+                                                <span className="font-mono text-[10px] text-primary/50 tracking-wider">
+                                                    {displayLabel}
+                                                </span>
+                                                <span className="font-mono text-sm text-accent-b font-bold">
+                                                    {entry.measurements[key]}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                                <div className="flex justify-between items-center py-2 border-b border-primary/10">
-                                    <span className="font-mono text-[10px] text-primary/50 tracking-wider">B: LENGTH</span>
-                                    <span className="font-mono text-sm text-accent-b font-bold">{item.length}</span>
-                                </div>
-                                <div className="flex justify-between items-center py-2">
-                                    <span className="font-mono text-[10px] text-primary/50 tracking-wider">C: SLEEVE</span>
-                                    <span className="font-mono text-sm text-accent-b font-bold">{item.sleeve}</span>
-                                </div>
-                            </div>
-                        ))}
+                            ))}
                     </div>
 
                     {/* Pro Tip */}
                     <div className="mt-4 p-3 bg-accent-a/5 border border-accent-a/20 rounded-md">
                         <p className="font-mono text-[9px] text-primary/40 leading-relaxed">
                             <span className="text-accent-a">PRO TIP:</span> For optimal aerodynamic performance,
-                            select a size that allows 1-2&quot; of ease across the chest.
+                            select a size that allows 1-2&quot; of ease across the primary measurement.
                         </p>
                     </div>
                 </GlassPanel>
@@ -130,9 +161,12 @@ export function SizeGuideSection({ modelPath }: SizeGuideSectionProps) {
             >
                 <GlassPanel className="px-6 py-3 holographic-glow">
                     <p className="font-mono text-xs text-primary/60 text-center">
-                        <span className="text-accent-b">A</span> Chest &middot;{" "}
-                        <span className="text-accent-b">B</span> Length &middot;{" "}
-                        <span className="text-accent-b">C</span> Sleeve
+                        {annotationData.map((a, i) => (
+                            <span key={a.id}>
+                                {i > 0 && " \u00B7 "}
+                                <span className="text-accent-b">{a.label}</span> {a.value}
+                            </span>
+                        ))}
                     </p>
                 </GlassPanel>
             </motion.div>

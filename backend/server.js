@@ -4,11 +4,16 @@ import authRoutes from './routes/auth.js';
 import orderRoutes from './routes/orders.js';
 import profileRoutes from './routes/profile.js';
 import productRoutes from './routes/products.js';
+import stripeRoutes from './routes/stripe.js';
+import webhookRoutes from './routes/webhook.js';
 import './config/database.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+// Stripe webhook must be mounted BEFORE express.json() — it needs raw body
+app.use(webhookRoutes);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -40,6 +45,7 @@ app.use('/api', authRoutes);
 app.use('/api', orderRoutes);
 app.use('/api', profileRoutes);
 app.use('/api', productRoutes);
+app.use('/api', stripeRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'operational', timestamp: new Date().toISOString() });
