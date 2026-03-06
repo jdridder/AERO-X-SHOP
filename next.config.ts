@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Prevent webpack from bundling the Stripe server SDK — it must run in
+  // the Node.js module system, not the webpack bundle.
+  serverExternalPackages: ["stripe"],
   images: {
     remotePatterns: [
       {

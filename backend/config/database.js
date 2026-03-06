@@ -51,6 +51,11 @@ try {
     db.exec('ALTER TABLE users ADD COLUMN shipping_address TEXT');
   } catch (e) { /* Column already exists */ }
 
+  // Migration: store the provider's transaction ID so we can look up orders by payment intent.
+  try {
+    db.exec('ALTER TABLE orders ADD COLUMN payment_provider_id TEXT');
+  } catch (e) { /* Column already exists */ }
+
   console.log('Database schema initialized');
 } catch (err) {
   console.error('Schema initialization error:', err.message);

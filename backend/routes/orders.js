@@ -9,6 +9,72 @@ import { authenticateToken, optionalAuth } from '../middleware/auth.js';
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'aero-x-secure-key-change-in-production';
 
+/**
+ * GET /api/orders/status?paymentIntentId=pi_xxx
+ *
+ * Provider-agnostic order status poll.
+ * The frontend only depends on our internal { status } field — it has no
+ * knowledge of Stripe, PayPal, or any other provider.
+ *
+ * Response shape (all cases):
+ *   { status: 'PENDING' | 'PAID' | 'FAILED', order: OrderData | null }
+ *
+ * HTTP 202 → still PENDING (webhook not yet received).
+ * HTTP 200 → PAID or FAILED (terminal state, stop polling).
+ * HTTP 400 → missing query param.
+ *
+ * No auth required — the payment provider ID acts as an ephemeral token.
+ */
+router.get('/orders/status', async (req, res) => {
+  try {
+    const { paymentIntentId } = req.query;
+    if (!paymentIntentId) {
+      return res.status(400).json({ error: 'paymentIntentId query param is required' });
+    }
+
+    const row = queryGet(
+      `SELECT id, is_paid, total_price, shipping_address, items, status, created_at
+       FROM orders WHERE payment_provider_id = ?`,
+      [paymentIntentId]
+    );
+
+    // Order not yet written by the webhook — still pending
+    if (!row) {
+      return res.status(202).json({ status: 'PENDING', order: null });
+    }
+
+    // Map internal DB state → generic payment status
+    // is_paid = 1 and status != 'payment_failed' → PAID
+    // status = 'payment_failed'                  → FAILED  (future use)
+    // anything else                              → PENDING
+    let paymentStatus;
+    if (row.status === 'payment_failed') {
+      paymentStatus = 'FAILED';
+    } else if (row.is_paid === 1) {
+      paymentStatus = 'PAID';
+    } else {
+      paymentStatus = 'PENDING';
+    }
+
+    const order = {
+      id:              row.id,
+      totalPrice:      row.total_price,
+      status:          row.status,
+      createdAt:       row.created_at,
+      shippingAddress: JSON.parse(row.shipping_address),
+      items:           JSON.parse(row.items),
+    };
+
+    // 202 for PENDING (keep polling), 200 for terminal states
+    const httpStatus = paymentStatus === 'PENDING' ? 202 : 200;
+    return res.status(httpStatus).json({ status: paymentStatus, order });
+
+  } catch (err) {
+    console.error('Order status error:', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 router.get('/my-orders', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;

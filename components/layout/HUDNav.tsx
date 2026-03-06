@@ -4,11 +4,10 @@ import { GlassPanel } from "@/components/ui/GlassPanel";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useCart } from "@/lib/store/useCart";
 import { cn } from "@/lib/utils";
-import { AnimatePresence, motion } from "framer-motion";
-import { Activity, Hexagon, Home, LayoutDashboard, LogOut, Package, ShoppingBag, User } from "lucide-react";
+import { motion } from "framer-motion";
+import { Activity, Hexagon, Home, Package, ShoppingBag, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 
 export function HUDNav() {
     const pathname = usePathname();
@@ -95,29 +94,6 @@ interface ActivePilotIndicatorProps {
 }
 
 function ActivePilotIndicator({ isAuthenticated, isLoading, user, authPath }: ActivePilotIndicatorProps) {
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-    const { logout } = useAuth();
-
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsDropdownOpen(false);
-            }
-        };
-
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    const handleIconClick = () => {
-        if (isAuthenticated) {
-            setIsDropdownOpen(!isDropdownOpen);
-        }
-    };
-
-    // If not authenticated, render as link
     if (!isAuthenticated) {
         return (
             <Link href={authPath} className="relative group p-2">
@@ -137,121 +113,45 @@ function ActivePilotIndicator({ isAuthenticated, isLoading, user, authPath }: Ac
     }
 
     return (
-        <div ref={dropdownRef} className="relative">
-            {/* Active Pilot Button with ID Badge */}
-            <motion.button
-                onClick={handleIconClick}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="relative flex items-center gap-2 p-2 group"
-            >
-                {/* ID Badge */}
-                <span className="font-mono text-[10px] tracking-wider text-accent-b hidden sm:block">
-                    {user?.shortId || "USR-0000"}
-                </span>
+        <Link href="/dashboard" className="relative flex items-center gap-2 p-2 group">
+            {/* ID Badge */}
+            <span className="font-mono text-[10px] tracking-wider text-accent-b hidden sm:block">
+                {user?.shortId || "USR-0000"}
+            </span>
 
-                {/* Icon Container with Breathing Glow */}
-                <div className="relative">
-                    {/* Breathing Glow Effect */}
-                    <motion.div
-                        className="absolute inset-0 rounded-full"
-                        style={{
-                            background: "linear-gradient(135deg, rgba(77, 77, 255, 0.3), rgba(204, 255, 0, 0.3))",
-                        }}
-                        animate={{
-                            boxShadow: [
-                                "0 0 10px rgba(204, 255, 0, 0.3), 0 0 20px rgba(77, 77, 255, 0.2)",
-                                "0 0 20px rgba(204, 255, 0, 0.5), 0 0 30px rgba(77, 77, 255, 0.3)",
-                                "0 0 10px rgba(204, 255, 0, 0.3), 0 0 20px rgba(77, 77, 255, 0.2)",
-                            ],
-                            scale: [1, 1.1, 1],
-                        }}
-                        transition={{
-                            duration: 3,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                        }}
-                    />
-
-                    {/* Icon */}
-                    <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-accent-a/20 to-accent-b/20 border border-accent-b/50">
-                        <User className="w-4 h-4 text-accent-b" />
-                    </div>
-                </div>
-
-                {/* Active Status Dot */}
+            {/* Icon Container with Breathing Glow */}
+            <div className="relative">
                 <motion.div
-                    className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-accent-b"
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                        background: "linear-gradient(135deg, rgba(77, 77, 255, 0.3), rgba(204, 255, 0, 0.3))",
+                    }}
+                    animate={{
+                        boxShadow: [
+                            "0 0 10px rgba(204, 255, 0, 0.3), 0 0 20px rgba(77, 77, 255, 0.2)",
+                            "0 0 20px rgba(204, 255, 0, 0.5), 0 0 30px rgba(77, 77, 255, 0.3)",
+                            "0 0 10px rgba(204, 255, 0, 0.3), 0 0 20px rgba(77, 77, 255, 0.2)",
+                        ],
+                        scale: [1, 1.1, 1],
+                    }}
+                    transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                    }}
                 />
-            </motion.button>
+                <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-accent-a/20 to-accent-b/20 border border-accent-b/50">
+                    <User className="w-4 h-4 text-accent-b" />
+                </div>
+            </div>
 
-            {/* Dropdown Menu */}
-            <AnimatePresence>
-                {isDropdownOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute bottom-full right-0 mb-3 w-52"
-                    >
-                        <GlassPanel className="rounded-xl border-accent-a/20 backdrop-blur-2xl overflow-hidden shadow-[0_0_30px_rgba(77,77,255,0.2)]">
-                            {/* User Info Header */}
-                            <div className="px-4 py-3 border-b border-primary/10">
-                                <div className="font-mono text-[10px] text-primary/40 tracking-wider">ACTIVE PILOT</div>
-                                <div className="font-mono text-xs text-accent-b truncate mt-1">
-                                    {user?.email}
-                                </div>
-                                <div className="font-mono text-[10px] text-accent-a/60 mt-0.5">
-                                    {user?.shortId}
-                                </div>
-                            </div>
-
-                            {/* Menu Options */}
-                            <div className="p-2">
-                                <Link
-                                    href="/dashboard"
-                                    onClick={() => setIsDropdownOpen(false)}
-                                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors group"
-                                >
-                                    <LayoutDashboard className="w-4 h-4 text-primary/40 group-hover:text-accent-a transition-colors" />
-                                    <span className="font-headline text-xs tracking-widest text-primary/60 group-hover:text-primary transition-colors">
-                                        VIEW DASHBOARD
-                                    </span>
-                                </Link>
-
-                                <button
-                                    onClick={() => {
-                                        setIsDropdownOpen(false);
-                                        logout();
-                                    }}
-                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-red-500/10 transition-colors group"
-                                >
-                                    <LogOut className="w-4 h-4 text-primary/40 group-hover:text-red-400 transition-colors" />
-                                    <span className="font-headline text-xs tracking-widest text-primary/60 group-hover:text-red-400 transition-colors">
-                                        TERMINATE SESSION
-                                    </span>
-                                </button>
-                            </div>
-
-                            {/* Status Footer */}
-                            <div className="px-4 py-2 border-t border-primary/10 flex items-center gap-2">
-                                <motion.div
-                                    className="w-1.5 h-1.5 rounded-full bg-accent-b"
-                                    animate={{ opacity: [1, 0.5, 1] }}
-                                    transition={{ duration: 1.5, repeat: Infinity }}
-                                />
-                                <span className="font-mono text-[9px] text-primary/30 tracking-wider">
-                                    SESSION ACTIVE
-                                </span>
-                            </div>
-                        </GlassPanel>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
+            {/* Active Status Dot */}
+            <motion.div
+                className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-accent-b"
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+            />
+        </Link>
     );
 }
 

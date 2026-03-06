@@ -1,19 +1,21 @@
-import express from 'express';
 import cookieParser from 'cookie-parser';
+import express from 'express';
+import './config/database.js';
 import authRoutes from './routes/auth.js';
 import orderRoutes from './routes/orders.js';
-import profileRoutes from './routes/profile.js';
+import paymentWebhookRoutes from './routes/paymentWebhook.js';
 import productRoutes from './routes/products.js';
+import profileRoutes from './routes/profile.js';
 import stripeRoutes from './routes/stripe.js';
 import webhookRoutes from './routes/webhook.js';
-import './config/database.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
-// Stripe webhook must be mounted BEFORE express.json() — it needs raw body
-app.use(webhookRoutes);
+// Webhook routes MUST be mounted before express.json() — they need the raw body for HMAC verification
+app.use(webhookRoutes);          // legacy: POST /webhook (Stripe direct)
+app.use(paymentWebhookRoutes);   // unified: POST /api/webhooks/payment
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

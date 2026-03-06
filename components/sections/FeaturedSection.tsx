@@ -4,12 +4,12 @@ import { ProductCard } from "@/components/shop/ProductCard";
 import { Button } from "@/components/ui/Button";
 import { useProducts } from "@/lib/hooks/useProducts";
 import { motion } from "framer-motion";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 function FeaturedSkeleton() {
     return (
-        <div className="h-[400px] animate-pulse">
+        <div className="h-[100px] animate-pulse">
             <div className="relative h-full w-full overflow-hidden rounded-xl border border-primary/10 bg-white/5">
                 <div className="relative aspect-[4/5] w-full bg-white/5" />
                 <div className="absolute bottom-0 w-full p-6">

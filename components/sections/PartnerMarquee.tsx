@@ -12,12 +12,8 @@ interface Partner {
 }
 
 const partnersData: Partner[] = [
-    { id: 1, name: "Tech Systems", src: "/logos/wasp-logo-black.svg" },
-    { id: 2, name: "Biometric Lab", src: "/logos/wasp-logo-black.svg" },
-    { id: 3, name: "Aero Dynamics", src: "/logos/wasp-logo-black.svg" },
-    { id: 4, name: "Precision Eng", src: "/logos/wasp-logo-black.svg" },
-    { id: 5, name: "Data Systems", src: "/logos/wasp-logo-black.svg" },
-    { id: 6, name: "Materials Lab", src: "/logos/wasp-logo-black.svg" },
+    { id: 1, name: "SPL Premium Nutrition", src: "/logos/SPL-Premium-Nutrition-logo.svg" },
+    { id: 2, name: "Wasp Aerodynamics", src: "/logos/wasp-logo-black.svg" },
 ];
 
 export function PartnerMarquee() {
@@ -67,8 +63,9 @@ export function PartnerMarquee() {
                             <Image
                                 src={partner.src}
                                 alt={partner.name}
-                                width={120}
-                                height={40}
+                                width={24}
+                                height={2} 
+                                style={{ width: '80%', height: 'auto' }}
                                 className="transition-all duration-300"
                             />
                         </motion.div>

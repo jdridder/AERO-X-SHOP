@@ -30,9 +30,11 @@ export function ProductImageDeck({ images, productName }: ProductImageDeckProps)
                         className="absolute inset-0"
                     >
                         <Image
+                            loading="eager"
                             src={images[activeIndex].src}
                             alt={images[activeIndex].alt || productName}
                             fill
+                            sizes="(max-width: 240px) 50vw, (max-width: 860px) 33vw, 100vw"
                             className="object-cover"
                             priority={activeIndex === 0}
                         />
@@ -62,9 +64,11 @@ export function ProductImageDeck({ images, productName }: ProductImageDeckProps)
                             )}
                         >
                             <Image
+                                loading="lazy"
                                 src={img.src}
                                 alt={img.alt || `${productName} ${index + 1}`}
                                 fill
+                                sizes="(max-width: 240px) 50vw, (max-width: 860px) 33vw, 100vw"
                                 className="object-cover"
                             />
                         </button>

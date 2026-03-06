@@ -1,9 +1,9 @@
 {
   "name": "website-2o",
-  "version": "0.1.0",
+  "version": "0.0.4",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -23,6 +23,7 @@
     "next-themes": "^0.4.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "stripe": "^20.3.1",
     "tailwind-merge": "^3.4.0",
     "three": "^0.182.0",
     "zustand": "^5.0.10"

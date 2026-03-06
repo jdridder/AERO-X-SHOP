@@ -1,5 +1,4 @@
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import Stripe from 'stripe';
 import { v4 as uuidv4 } from 'uuid';
 import { queryGet, queryRun } from '../config/database.js';
@@ -8,7 +7,7 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'aero-x-secure-key-change-in-production';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-04-30.basil',
+  apiVersion: '2026-01-28.clover',
 });
 
 // POST /webhook

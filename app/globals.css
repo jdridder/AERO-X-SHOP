@@ -22,32 +22,6 @@
   /* Cloud */
 }
 
-/* Light Mode Variables (Default) */
-:root {
-  --background: var(--color-canvas);
-  --foreground: var(--color-primary);
-
-  /* Bimodal System - Light Mode (Clinical Lab) */
-  --color-bg: #ffffff;
-  --color-text: #050507;
-  --color-border: rgba(0, 0, 0, 0.1);
-  --color-border-strong: rgba(0, 0, 0, 0.2);
-
-  /* Adaptive Glassmorphism */
-  --glass-bg: rgba(0, 0, 0, 0.05);
-  --glass-border: rgba(0, 0, 0, 0.1);
-  --glass-blur: 24px;
-
-  /* Checkout Modal */
-  --checkout-bg: rgba(255, 255, 255, 0.9);
-  --checkout-backdrop: rgba(0, 0, 0, 0.6);
-  --checkout-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.3);
-
-  /* HUD */
-  --hud-bg: rgba(255, 255, 255, 0.8);
-  --hud-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2);
-}
-
 /* Dark Mode Variables */
 .dark {
   /* Bimodal System - Dark Mode (Obsidian) */

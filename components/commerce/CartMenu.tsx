@@ -1,12 +1,10 @@
 "use client";
 
-import { useCart } from "@/lib/store/useCart";
 import { Button } from "@/components/ui/Button";
-import { GlassPanel } from "@/components/ui/GlassPanel"; // Assuming you have this or similar
-import { X, Minus, Plus, Trash2, ShieldCheck } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCart } from "@/lib/store/useCart";
+import { AnimatePresence, motion } from "framer-motion";
+import { Minus, Plus, ShieldCheck, Trash2, X } from "lucide-react";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
 export function CartMenu() {
@@ -78,6 +76,7 @@ export function CartMenu() {
                                                         src={item.image_url}
                                                         alt={item.name}
                                                         fill
+                                                        sizes="10vw"
                                                         className="object-cover"
                                                     />
                                                 </div>

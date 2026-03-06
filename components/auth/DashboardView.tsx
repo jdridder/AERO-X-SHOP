@@ -77,6 +77,7 @@ export function DashboardView() {
   const [returnLoading, setReturnLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ type, message });
@@ -161,8 +162,6 @@ export function DashboardView() {
       </div>
     );
   }
-
-  const pathname = usePathname();
 
   return (
     <div className="min-h-screen p-4 md:p-8 pb-32 relative overflow-hidden">
@@ -409,7 +408,7 @@ export function DashboardView() {
                       <motion.tr
                         key={order.id}
                         variants={rowVariants}
-                        className="border-b border-primary/5 hover:bg-white/[0.02] transition-colors duration-200"
+                        className="border-b border-primary/5 hover:rgba(255,255,255,0.02) transition-colors duration-200"
                         whileHover={{
                           backgroundColor: "rgba(255, 255, 255, 0.03)",
                           transition: { duration: 0.2 },
@@ -559,8 +558,8 @@ export function DashboardView() {
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
             className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-4 rounded-full font-mono text-sm tracking-wider ${
               toast.type === "success"
-                ? "bg-accent-b text-black shadow-[0_0_30px_rgba(204,255,0,0.4)]"
-                : "bg-red-500/90 text-white shadow-[0_0_30px_rgba(239,68,68,0.4)]"
+                ? "bg-accent-b rgb(1,1,1) shadow-[0_0_30px_rgba(204,255,0,0.4)]"
+                : "bg-red-500/90 rgb(255,255,255) shadow-[0_0_30px_rgba(239,68,68,0.4)]"
             }`}
           >
             {toast.type === "success" ? (

@@ -1,7 +1,7 @@
 "use client";
 
-import { StorytellingBlock } from "@/lib/services/api";
 import { GlassPanel } from "@/components/ui/GlassPanel";
+import { StorytellingBlock } from "@/lib/services/api";
 import { motion } from "framer-motion";
 import Image from "next/image";
 
@@ -25,6 +25,7 @@ export function DynamicStorytelling({ block, index }: DynamicStorytellingProps) 
                 src={block.image}
                 alt={block.title}
                 fill
+                sizes="(max-width: 240px) 50vw, (max-width: 860px) 33vw, 100vw"
                 className="object-cover"
             />
             <div

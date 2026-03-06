@@ -1,13 +1,14 @@
 import bcrypt from 'bcryptjs';
+import "dotenv/config";
 import express from 'express';
 import Stripe from 'stripe';
 import { validateAndCalculateTotal } from '../data/products.ts';
 import { optionalAuth } from '../middleware/auth.js';
 
-const router = express.Router();
+const router = express.Router(); 
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-04-30.basil',
+  apiVersion: '2026-01-28.clover',
 });
 
 // POST /api/create-payment-intent
@@ -64,6 +65,7 @@ router.post('/create-payment-intent', optionalAuth, async (req, res) => {
       currency: 'eur',
       metadata,
       receipt_email: shipping_address.email,
+      payment_method_types: ['card'],
     });
 
     res.status(200).json({ clientSecret: paymentIntent.client_secret });

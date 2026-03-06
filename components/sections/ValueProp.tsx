@@ -2,39 +2,39 @@
 
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { cn } from "@/lib/utils";
-import { Wind, Thermometer, Zap, Shield } from "lucide-react";
+import { Rose, Rotate3D, Thermometer, Zap } from "lucide-react";
 
 const features = [
     {
-        title: "AERO EFFICIENCY",
-        value: "-14.2%",
-        unit: "CdA REDUCTION",
-        description: "Computational Fluid Dynamics optimized surface texturing reduces turbulent wake.",
-        icon: Wind,
+        title: "AURA BOOST",
+        value: "+24.2 %",
+        unit: "INCREASED AURA",
+        description: "Use of subtle, energizing color therapy to mentally sharpen your focus and elevate your mood on the run.",
+        icon: Rose,
         colSpan: "col-span-1 md:col-span-2",
     },
     {
-        title: "THERMAL REGULATION",
-        value: "3.5°C",
-        unit: "CORE COOLING",
-        description: "Active phase-change material matrix adapts to metabolic heat output.",
+        title: "WARMING/COOLING REGULATOR",
+        value: "1.5 K",
+        unit: "SKIN TEMPERATURE MODULATION",
+        description: "Features intelligent fabric that adapts to your body's temperature, actively generating warmth when cold and releasing heat when you overheat.",
         icon: Thermometer,
         colSpan: "col-span-1",
     },
     {
-        title: "KINETIC RETURN",
-        value: "15J",
-        unit: "PER STRIDE",
-        description: "Elastic compression zones store and release kinetic energy.",
-        icon: Zap,
+        title: "NEXT DIMENSION HOLOGRAPHS",
+        value: "3D",
+        unit: "SIZE VISUALIZATION",
+        description: "Anatomical constructions that present our size guides including immersive descriptions and visuals.",
+        icon: Rotate3D,
         colSpan: "col-span-1",
     },
     {
-        title: "IMPACT SHIELD",
-        value: "UPF 50+",
-        unit: "RADIATION BLOCK",
-        description: "Molecular ceramic coating provides weightless UV and abrasion protection.",
-        icon: Shield,
+        title: "DRY EFFECT",
+        value: "2.26 kJ/mL",
+        unit: "COOLING BY EVAPORATION",
+        description: "Enhanced Lycra fabric allows for phase change of sweat at the fabric-air boundary layer to keep your skin dry and comfortable, mile after mile.",
+        icon: Zap,
         colSpan: "col-span-1 md:col-span-2",
     },
 ];

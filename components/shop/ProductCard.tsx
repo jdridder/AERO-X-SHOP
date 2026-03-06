@@ -2,11 +2,9 @@
 
 import { Product } from "@/lib/services/api";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { PerformanceRadar } from "./PerformanceRadar";
 
 
 interface ProductCardProps {
@@ -29,6 +27,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
                         alt={product.name}
                         fill
                         className="object-cover transition-transform duration-500 group-hover:scale-105 opacity-80 group-hover:opacity-100"
+                        sizes="(max-width: 240px) 50vw, (max-width: 860px) 33vw, 100vw"
                     />
                     {/* Overlay Gradient */}
                     <div className="absolute inset-0 bg-gradient-to-t opacity-80" style={{ backgroundImage: 'linear-gradient(to top, var(--color-bg), color-mix(in srgb, var(--color-bg) 20%, transparent), transparent)' }} />
